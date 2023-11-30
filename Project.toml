@@ -1,0 +1,4 @@
+name = "CloudClusters"
+uuid = "4ca6f12b-c8f1-4945-b50f-6bb73234c039"
+authors = ["Francisco Heron de Carvalho Junior <heron@dc.ufc.br> e João Marcelo Uchôa de Alencar"]
+version = "0.1.0"
