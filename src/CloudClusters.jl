@@ -1,11 +1,11 @@
 module CloudClusters
 
-input("testesjm.jl")
+include("testesjm.jl")
 
-input("cluster.jl")
-input("deploy.jl")
-input("resolve.jl")
-input("macros.jl")
+include("cluster.jl")
+include("deploy.jl")
+include("resolve.jl")
+include("macros.jl")
 
 
 end # end CloudCluster
