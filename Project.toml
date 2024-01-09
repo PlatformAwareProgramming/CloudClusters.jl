@@ -1,4 +1,8 @@
 name = "CloudClusters"
 uuid = "4ca6f12b-c8f1-4945-b50f-6bb73234c039"
-authors = ["Francisco Heron de Carvalho Junior <heron@dc.ufc.br> e João Marcelo Uchôa de Alencar"]
+authors = ["Francisco Heron de Carvalho Junior <heron@dc.ufc.br> e João Marcelo Uchôa de Alencar <joao.marcelo@ufc.br>"]
 version = "0.1.0"
+
+[deps]
+AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
