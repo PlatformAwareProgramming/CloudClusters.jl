@@ -27,7 +27,7 @@ end
 
 function print_info()
     instance_types = retrieve_instance_types()
-    eachindex(instance_types) do i
+    for i in eachindex(instance_types)
         @printf("%20s: %5s cores %12s MiB of RAM\n", instance_types[i]["instanceType"], instance_types[i]["vCpuInfo"]["defaultVCpus"], instance_types[i]["memoryInfo"]["sizeInMiB"] )
     end
 end

@@ -6,3 +6,4 @@ version = "0.1.0"
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"

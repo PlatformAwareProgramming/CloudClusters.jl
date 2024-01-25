@@ -1,16 +1,3 @@
-# Este é o arquivo modelo (template) que o script pcluster gera para enviar à API do serviço CloudFormation da AWS.
-# O serviço da CloudFormation é responsável por criar o cluster. Ele é capaz de criar pilhas, grupos de recursos.
-# O modelo é gerado a partir do arquivo config-file.yaml.
-# O problema é que, para enviar a partir do disco rígido local, este arquivo tem tamanho limite de 51200 bytes. 
-# Isto é verdade tanto para a ferramenta em linha de comando quanto para o pacote AWS Julia.
-# Para modelos maiores, é preciso carregar o arquivo em uma URL, seja do S3 ou de outro lugar.
-# Então, para fazer apenas com código Julia, teríamos que:
-# 1. Alterar o modelo abaixo com as opções do desenvolvedor (cpu, memória, etc).
-# 2. Criar um bucket S3 temporário.
-# 3. Carregar o modelo no bucket.
-# 4. Enviar a url do modelo no bucket para a API do CloudFormation.
-# 5. Apagar o bucket.
-# Restar saber até onde essa abordagem é mais adequada do que criar um processo executando o comando pcluster.
 Outputs:
   ClusterHostedZone:
     Description: Id of the private hosted zone created within the cluster
