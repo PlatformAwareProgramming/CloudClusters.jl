@@ -1,3 +1,5 @@
 include("testesjm.jl")
 
-print_info()
+
+bucket_name = create_random_bucket()
+delete_random_bucket(bucket_name)

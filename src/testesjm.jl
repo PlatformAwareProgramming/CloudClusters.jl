@@ -5,12 +5,41 @@ For this module to work, you`ll need AWS credentials in the ${HOME}/.aws directo
 
 using Printf
 using YAML
+using Random
 
 using AWS: @service
-@service Ec2
+@service Ec2 
+@service S3
 
 export retrieve_instance_types
 export print_info
+
+#=
+    This function creates a random bucket in the default region.
+    It returns the name of the bucket.
+=#
+function create_random_bucket()
+    bucket_name = "bucket$(lowercase(randstring(10)))"
+    S3.create_bucket(bucket_name)
+    bucket_name
+end
+
+#=
+    This function puts a template file in a bucket.
+    It returns the url of the object.
+=#
+function put_template_bucket(template_file, bucket_name)
+    open(template_file, "r") do file
+        S3.put_object(bucket_name, "template.yaml", Dict("Body" => read(file, String)))
+    end
+    url = "s3://" + bucket_name + "/" + "template.yaml"
+    url
+end
+
+function delete_random_bucket(bucket_name)
+    S3.delete_object(bucket_name, "template.yaml")
+    S3.delete_bucket(bucket_name)
+end
 
 function retrieve_instance_types()
     response = Ec2.describe_instance_types()
