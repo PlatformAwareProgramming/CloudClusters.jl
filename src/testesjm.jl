@@ -30,9 +30,9 @@ end
 =#
 function put_template_bucket(template_file, bucket_name)
     open(template_file, "r") do file
-        S3.put_object(bucket_name, "template.yaml", Dict("Body" => read(file, String)))
+        S3.put_object(bucket_name, "template.yaml", Dict("body" => read(file, String)))
     end
-    url = "s3://" + bucket_name + "/" + "template.yaml"
+    url = "s3://" * bucket_name * "/" * "template.yaml"
     url
 end
 
