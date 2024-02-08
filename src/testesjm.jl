@@ -14,14 +14,6 @@ using AWS: @service
 export retrieve_instance_types
 export print_info
 
-"""
-    Função para invocar pcluster
-"""
-function pcluster(commands)
-    virtualenv = "source ~/apc-ve/bin/activate; pcluster $commands;"
-    process = `bash -c $virtualenv`
-    run(process)
-end
 
 """
     This function creates a random bucket in the default region.
