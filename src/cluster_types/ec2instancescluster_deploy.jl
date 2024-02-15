@@ -1,27 +1,7 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-abstract type EC2InstancesCluster <: ClusterType end
-abstract type EC2InstancesClusterLink <: ClusterType end
-abstract type EC2InstancesClusterNodes <: ClusterType end
-abstract type EC2InstancesClusterCreate <: EC2InstancesCluster end
+abstract type EC2Cluster <: ClusterType end
+abstract type EC2ClusterLink <: EC2Cluster end
+abstract type EC2ClusterNodes <: EC2Cluster end
+abstract type EC2ClusterCreate <: EC2Cluster end
 
 
 #=
@@ -31,26 +11,27 @@ Two modes:
  - create a new cluster
 
 =#
-function deploy_cluster(type::Type{EC2InstancesCluster}, features)
+function deploy_cluster(type::Type{EC2Cluster}, features)
     
     wid = if !haskey(features, :mode) 
               @error "Unkown mode" 
               -1
           elseif features[:mode] == :link_cluster
-              deploy_cluster(EC2InstancesClusterLink, features)
-          elseif features[:mode] == :link_nodes
-              deploy_cluster(EC2InstancesClusterLink, features)
-          elseif features[:mode] == :deploy_cluster
-              deploy_cluster(EC2InstancesClusterCreate, features)
+              deploy_cluster(EC2ClusterLink, features)
+          elseif features[:mode] == :cluster_nodes
+              deploy_cluster(EC2ClusterLink, features)
+          elseif features[:mode] == :create_cluster
+              deploy_cluster(EC2ClusterCreate, features)
           else
               @error "Invalid cluster mode"
               -1
           end
+    wid
 end
 
 # 1. creates a worker process in the master node
 # 2. from the master node, create worker processes in the compute nodes with MPIClusterManager
-function deploy_cluster(type::Type{EC2InstancesClusterLink}, features)
+function deploy_cluster(type::Type{EC2ClusterLink}, features)
     #= the necessary information to perform cluster operations (interrupt, continue, terminate) =#
     deploy_info = Dict(:cluster_type => type)
 
@@ -59,7 +40,7 @@ end
 
 # 1. run the script to clusterize the nodes
 # 2. call deploy_cluster to link ...
-function deploy_cluster(type::Type{EC2InstancesClusterNodes}, features)
+function deploy_cluster(type::Type{EC2ClusterNodes}, features)
     #= the necessary information to perform cluster operations (interrupt, continue, terminate) =#
     deploy_info = Dict(:cluster_type => type)
 
@@ -68,7 +49,7 @@ end
 
 # 1. create a set of EC2 instances using the EC2 API
 # 2. run deploy_cluster to clusterize them and link to them
-function deploy_cluster(type::Type{EC2InstancesClusterCreate}, features)
+function deploy_cluster(type::Type{EC2ClusterCreate}, features)
     #= the necessary information to perform cluster operations (interrupt, continue, terminate) =#
     deploy_info = Dict(:cluster_type => type)
 
@@ -77,43 +58,19 @@ end
 
 #==== INTERRUPT CLUSTER ====#
 
-function interrupt_cluster(type::Type{EC2InstancesClusterLink}, features)
+function interrupt_cluster(wid, type::Type{EC2Cluster})
     
-end
-
-function interrupt_cluster(type::Type{EC2InstancesClusterNodes}, features)
-
-end
-
-function interrupt_cluster(type::Type{EC2InstancesClusterCreate}, features)
-
 end
 
 #==== CONTINUE CLUSTER ====#
 
-function continue_cluster(type::Type{EC2InstancesClusterLink}, features)
+function continue_cluster(wid, type::Type{EC2Cluster})
     
-end
-
-function continue_cluster(type::Type{EC2InstancesClusterNodes}, features)
-
-end
-
-function continue_cluster(type::Type{EC2InstancesClusterCreate}, features)
-
 end
 
 #==== TERMINATE CLUSTER ====#
 
-function terminate_cluster(type::Type{EC2InstancesClusterLink}, features)
+function terminate_cluster(wid, type::Type{EC2Cluster})
     
-end
-
-function terminate_cluster(type::Type{EC2InstancesClusterNodes}, features)
-
-end
-
-function terminate_cluster(type::Type{EC2InstancesClusterCreate}, features)
-
 end
 

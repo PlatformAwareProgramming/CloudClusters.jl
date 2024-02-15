@@ -1,18 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # indexed by wid
 cluster_deploy_info = Dict()
 

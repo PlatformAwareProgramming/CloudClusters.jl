@@ -1,32 +1,8 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #= features: a dictionary of cluster characteristics 
 =#
 
-struct ClusterHandle
-end
+struct ClusterHandle end
 
 abstract type ClusterType end
 
