@@ -15,6 +15,42 @@ using AWS: @service
 @service Efs
 
 #=
+Estrutura para Armazenar as informações e função de criação do cluster
+=#
+
+struct Cluster
+    name::String
+    placement_group::String
+    security_group_id::String
+    efs_id::String
+    cluster_nodes::Dict{String, String}
+end
+
+function create_cluster(cluster_name, instance_type, image_id, key_name, count)
+    placement_group = create_placement_group(cluster_name)
+    security_group_id = create_security_group(cluster_name, "Grupo $cluster_name")
+    #efs_id = create_efs()
+    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id)
+    Cluster(cluster_name, placement_group, security_group_id, "", cluster_nodes)
+end
+
+function delete_cluster(cluster_handle::Cluster)
+    delete_instances(cluster_handle.cluster_nodes)
+    for instance in cluster_handle.cluster_nodes
+        status = get_instance_status(instance[2])
+
+        while status != "terminated"
+            println("Waiting for instance to terminate...")
+            sleep(5)
+            status = get_instance_status(instance[2])
+        end
+    end
+    # delete_efs(cluster_handle.efs_id)
+    delete_security_group(cluster_handle.security_group_id)
+    delete_placement_group(cluster_handle.placement_group)
+end
+
+#=
 Grupo de Alocação
 =#
 function create_placement_group(name)
@@ -24,10 +60,11 @@ function create_placement_group(name)
         "TagSpecification" => 
             Dict(
                 "ResourceType" => "placement-group",
-                "Tag" => [Dict("Key" => "cluster", "Value" => name)]
+                "Tag" => [Dict("Key" => "cluster", "Value" => name),
+                          Dict("Key" => "Name", "Value" => name)]
             )
         )
-    Ec2.create_placement_group(params)
+    Ec2.create_placement_group(params)["placementGroup"]["groupName"]
 end
 
 #=
@@ -46,7 +83,8 @@ function create_security_group(name, description)
         "TagSpecification" => 
             Dict(
                 "ResourceType" => "security-group",
-                "Tag" => [Dict("Key" => "cluster", "Value" => name)]
+                "Tag" => [Dict("Key" => "cluster", "Value" => name),
+                          Dict("Key" => "Name", "Value" => name)]
             )
     )
     id = Ec2.create_security_group(name, description, params)["groupId"]
@@ -70,7 +108,8 @@ Foi preciso editar as linhas 29578 e 29598 do arquivo ~/.julia/packages/AWS/3Zvz
 Precisa usar no mínimo c6i.large.
 =#
 
-function create_instances(name, instance_type, image_id, key_name, count, placement_group, security_group_id)
+function create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id)
+    cluster_nodes = Dict()
     params = Dict(
         "InstanceType" => instance_type,
         "ImageId" => image_id,
@@ -80,24 +119,44 @@ function create_instances(name, instance_type, image_id, key_name, count, placem
         "TagSpecification" => 
             Dict(
                 "ResourceType" => "instance",
-                "Tag" => [Dict("Key" => "cluster", "Value" => name)]
+                "Tag" => [Dict("Key" => "cluster", "Value" => cluster_name),
+                          Dict("Key" => "Name", "Value" => "headnode") ]
             )
     )
-    instances = Ec2.run_instances(count,count,params)
-    number_of_instances = length(instances["instancesSet"]["item"])
-    ids = []
-    for i in 1:number_of_instances
-        instance = instances["instancesSet"]["item"][i]
+    instances = Ec2.run_instances(1,1,params)
+    cluster_nodes["headnode"] = instances["instancesSet"]["item"]["instanceId"]
+
+    worker_count = count - 1
+    if worker_count > 1
+        params["TagSpecification"]["Tag"][2]["Value"] = "worker"
+        instances = Ec2.run_instances(worker_count,worker_count,params)
+        for i in 1:worker_count
+            instance = instances["instancesSet"]["item"][i]
+            instance_id = instance["instanceId"]
+            cluster_nodes["worker$i"] = instance_id
+        end
+    elseif worker_count == 1
+        params["TagSpecification"]["Tag"][2]["Value"] = "worker"
+        instances = Ec2.run_instances(worker_count,worker_count,params)
+        instance = instances["instancesSet"]["item"]
         instance_id = instance["instanceId"]
-        push!(ids, instance_id)
+        cluster_nodes["worker1"] = instance_id
+    else
+        return cluster_nodes
     end
-    ids
+    cluster_nodes
 end
 
-function delete_instances()
-    
+function delete_instances(cluster_nodes)
+    for id in values(cluster_nodes)
+        Ec2.terminate_instances(id)
+    end
 end
 
+function get_instance_status(id)
+    status = Ec2.describe_instances(Dict("InstanceId" => id))
+    status["reservationSet"]["item"]["instancesSet"]["item"]["instanceState"]["name"]
+end
 #=
 Sistema de Arquivo Compartilhado
 =#
