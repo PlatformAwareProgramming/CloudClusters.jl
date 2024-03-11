@@ -1,3 +1,10 @@
-include("pcluster.jl")
+include("awsbackend.jl")
 
-cluster_name = configure_cluster("us-east-1", "ubuntu2204", "t2.micro", "subnet-a91a21f4", "pcluster", "t2micro", 4, 4)
+
+cluster_name = "pargocad"
+
+create_placement_group(cluster_name)
+group_id = create_security_group(cluster_name, "Grupo Pargocad")
+
+delete_placement_group(cluster_name)
+delete_security_group(group_id)
