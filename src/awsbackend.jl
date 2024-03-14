@@ -95,6 +95,11 @@ function create_security_group(name, description)
         "FromPort" => 22,
         "ToPort" => 22)
     Ec2.authorize_security_group_ingress(params)
+    sg_name =  Ec2.describe_security_groups(Dict("GroupId" => id))["securityGroupInfo"]["item"]["groupName"]
+    params = Dict(
+        "GroupId" => id, 
+        "SourceSecurityGroupName" => sg_name)
+    Ec2.authorize_security_group_ingress(params)
     id
 end
 
@@ -154,16 +159,22 @@ function delete_instances(cluster_nodes)
 end
 
 function get_instance_status(id)
-    status = Ec2.describe_instances(Dict("InstanceId" => id))
-    status["reservationSet"]["item"]["instancesSet"]["item"]["instanceState"]["name"]
+    description = Ec2.describe_instances(Dict("InstanceId" => id))
+    description["reservationSet"]["item"]["instancesSet"]["item"]["instanceState"]["name"]
 end
+
+function get_instance_subnet(id)
+    description = Ec2.describe_instances(Dict("InstanceId" => id))
+    description["reservationSet"]["item"]["instancesSet"]["item"]["subnetId"]
+end
+
 #=
 Sistema de Arquivo Compartilhado
 =#
 function create_efs()
     chars = ['a':'z'; 'A':'Z'; '0':'9']
     creation_token = join(chars[Random.rand(1:length(chars), 64)])
-    Efs.create_file_system(creation_token)["FilesystemId"]
+    Efs.create_file_system(creation_token)["FileSystemId"]
 end
 
 function delete_efs(id)
