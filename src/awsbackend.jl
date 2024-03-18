@@ -11,6 +11,8 @@ For this module to work, you`ll need AWS credentials in the ${HOME}/.aws directo
 
 using Random
 using AWS: @service
+using Serialization
+using Base64
 @service Ec2 
 @service Efs
 
@@ -22,32 +24,47 @@ struct Cluster
     name::String
     placement_group::String
     security_group_id::String
-    efs_id::String
+    file_system_id::String
     cluster_nodes::Dict{String, String}
 end
 
 function create_cluster(cluster_name, instance_type, image_id, key_name, count)
     # Eu vou recuperar a primeira subrede e utilizá-la. Na prática não faz diferença, mas podemos depois criar uma função para escolher a subrede e VPC.
     subnet_id = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
+    println("Subnet ID: $subnet_id")
     placement_group = create_placement_group(cluster_name)
+    println("Placement Group: $placement_group")
     security_group_id = create_security_group(cluster_name, "Grupo $cluster_name")
-    efs_id = create_efs(subnet_id, security_group_id)
-    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id)
-    Cluster(cluster_name, placement_group, security_group_id, efs_id, cluster_nodes)
+    println("Security Group ID: $security_group_id")
+    file_system_id = create_efs(subnet_id, security_group_id)
+    println("File System ID: $file_system_id")
+    file_system_ip = get_mount_target_ip(file_system_id)
+    println("File System IP: $file_system_ip")
+    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id,file_system_ip)
+    Cluster(cluster_name, placement_group, security_group_id, file_system_id, cluster_nodes)
+end
+
+function get_ips(c)
+    ips = Dict()
+    for (node, id) in c.cluster_nodes
+        public_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
+        private_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
+        ips[node]=Dict("public_ip" => public_ip, "private_ip" => private_ip)
+    end
+    ips
 end
 
 function delete_cluster(cluster_handle::Cluster)
     delete_instances(cluster_handle.cluster_nodes)
     for instance in cluster_handle.cluster_nodes
         status = get_instance_status(instance[2])
-
         while status != "terminated"
-            println("Waiting for instance to terminate...")
+            println("Waiting for instances to terminate...")
             sleep(5)
             status = get_instance_status(instance[2])
         end
     end
-    delete_efs(cluster_handle.efs_id)
+    delete_efs(cluster_handle.file_system_id)
     delete_security_group(cluster_handle.security_group_id)
     delete_placement_group(cluster_handle.placement_group)
 end
@@ -115,8 +132,15 @@ Foi preciso editar as linhas 29578 e 29598 do arquivo ~/.julia/packages/AWS/3Zvz
 Precisa usar no mínimo c6i.large.
 =#
 
-function create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id)
+function create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
     cluster_nodes = Dict()
+    user_data = "#!/bin/bash
+apt-get -y install nfs-common
+mkdir /home/ubuntu/shared/
+mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $file_system_ip:/ /home/ubuntu/shared/
+chown -R ubuntu:ubuntu /home/ubuntu/shared
+"
+    user_data_base64 = base64encode(user_data)
     params = Dict(
         "InstanceType" => instance_type,
         "ImageId" => image_id,
@@ -129,7 +153,8 @@ function create_instances(cluster_name, instance_type, image_id, key_name, count
                 "ResourceType" => "instance",
                 "Tag" => [Dict("Key" => "cluster", "Value" => cluster_name),
                           Dict("Key" => "Name", "Value" => "headnode") ]
-            )
+            ),
+        "UserData" => user_data_base64,
     )
     instances = Ec2.run_instances(1,1,params)
     cluster_nodes["headnode"] = instances["instancesSet"]["item"]["instanceId"]
@@ -174,22 +199,42 @@ end
 #=
 Sistema de Arquivo Compartilhado
 =#
+
 function create_efs(subnet_id, security_group_id)
     chars = ['a':'z'; 'A':'Z'; '0':'9']
     creation_token = join(chars[Random.rand(1:length(chars), 64)])
-    #file_system_id = Efs.create_file_system(creation_token)["FileSystemId"]
+    file_system_id = Efs.create_file_system(creation_token)["FileSystemId"]
+    create_mount_point(file_system_id, subnet_id, security_group_id)
+    file_system_id
+end
+
+function create_mount_point(file_system_id, subnet_id, security_group_id)
     params = Dict(
         "SecurityGroups" => [security_group_id]
     )
-    mount_target_id = Efs.create_mount_target("fs-006a110c416bc0c8b", subnet_id, params)["MountTargetId"]
+
+    status = Efs.describe_file_systems(Dict("FileSystemId" => file_system_id))["FileSystems"][1]["LifeCycleState"]
+    while status != "available"
+        println("Waiting for File System to be available...")
+        sleep(5)
+        status = Efs.describe_file_systems(Dict("FileSystemId" => file_system_id))["FileSystems"][1]["LifeCycleState"]
+    end
+    println("Creating Mount Target...")
+
+    mount_target_id = Efs.create_mount_target(file_system_id, subnet_id, params)["MountTargetId"]
     status = Efs.describe_mount_targets(Dict("MountTargetId" => mount_target_id))["MountTargets"][1]["LifeCycleState"]
     while status != "available"
         println("Waiting for mount target to be available...")
         sleep(5)
         status = Efs.describe_mount_targets(Dict("MountTargetId" => mount_target_id))["MountTargets"][1]["LifeCycleState"]
     end
+    mount_target_id
+end
 
-    #file_system_id
+function get_mount_target_ip(file_system_id)
+    mount_target_id = Efs.describe_mount_targets(Dict("FileSystemId" => file_system_id))["MountTargets"][1]["MountTargetId"]
+    ip = Efs.describe_mount_targets(Dict("MountTargetId" => mount_target_id))["MountTargets"][1]["IpAddress"]
+    ip
 end
 
 function delete_efs(file_system_id)
