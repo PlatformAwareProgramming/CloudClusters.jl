@@ -27,11 +27,13 @@ struct Cluster
 end
 
 function create_cluster(cluster_name, instance_type, image_id, key_name, count)
+    # Eu vou recuperar a primeira subrede e utilizá-la. Na prática não faz diferença, mas podemos depois criar uma função para escolher a subrede e VPC.
+    subnet_id = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
     placement_group = create_placement_group(cluster_name)
     security_group_id = create_security_group(cluster_name, "Grupo $cluster_name")
-    #efs_id = create_efs()
-    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id)
-    Cluster(cluster_name, placement_group, security_group_id, "", cluster_nodes)
+    efs_id = create_efs(subnet_id, security_group_id)
+    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id)
+    Cluster(cluster_name, placement_group, security_group_id, efs_id, cluster_nodes)
 end
 
 function delete_cluster(cluster_handle::Cluster)
@@ -45,7 +47,7 @@ function delete_cluster(cluster_handle::Cluster)
             status = get_instance_status(instance[2])
         end
     end
-    # delete_efs(cluster_handle.efs_id)
+    delete_efs(cluster_handle.efs_id)
     delete_security_group(cluster_handle.security_group_id)
     delete_placement_group(cluster_handle.placement_group)
 end
@@ -113,7 +115,7 @@ Foi preciso editar as linhas 29578 e 29598 do arquivo ~/.julia/packages/AWS/3Zvz
 Precisa usar no mínimo c6i.large.
 =#
 
-function create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id)
+function create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id)
     cluster_nodes = Dict()
     params = Dict(
         "InstanceType" => instance_type,
@@ -121,6 +123,7 @@ function create_instances(cluster_name, instance_type, image_id, key_name, count
         "KeyName" => key_name,
         "Placement" => Dict("GroupName" => placement_group),
         "SecurityGroupId" => [security_group_id],
+        "SubnetId" => subnet_id,
         "TagSpecification" => 
             Dict(
                 "ResourceType" => "instance",
@@ -171,13 +174,32 @@ end
 #=
 Sistema de Arquivo Compartilhado
 =#
-function create_efs()
+function create_efs(subnet_id, security_group_id)
     chars = ['a':'z'; 'A':'Z'; '0':'9']
     creation_token = join(chars[Random.rand(1:length(chars), 64)])
-    Efs.create_file_system(creation_token)["FileSystemId"]
+    #file_system_id = Efs.create_file_system(creation_token)["FileSystemId"]
+    params = Dict(
+        "SecurityGroups" => [security_group_id]
+    )
+    mount_target_id = Efs.create_mount_target("fs-006a110c416bc0c8b", subnet_id, params)["MountTargetId"]
+    status = Efs.describe_mount_targets(Dict("MountTargetId" => mount_target_id))["MountTargets"][1]["LifeCycleState"]
+    while status != "available"
+        println("Waiting for mount target to be available...")
+        sleep(5)
+        status = Efs.describe_mount_targets(Dict("MountTargetId" => mount_target_id))["MountTargets"][1]["LifeCycleState"]
+    end
+
+    #file_system_id
 end
 
-function delete_efs(id)
-    Efs.delete_file_system(id)
+function delete_efs(file_system_id)
+    for mount_target in Efs.describe_mount_targets(Dict("FileSystemId" => file_system_id))["MountTargets"]
+        Efs.delete_mount_target(mount_target["MountTargetId"])
+    end
+    while length(Efs.describe_mount_targets(Dict("FileSystemId" => file_system_id))["MountTargets"]) != 0
+        println("Waiting for mount targets to be deleted...")
+        sleep(5)
+    end
+    Efs.delete_file_system(file_system_id)
 end
 
