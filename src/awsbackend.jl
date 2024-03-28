@@ -40,7 +40,7 @@ function create_cluster(cluster_name, instance_type, image_id, key_name, count)
     println("File System ID: $file_system_id")
     file_system_ip = get_mount_target_ip(file_system_id)
     println("File System IP: $file_system_ip")
-    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id,file_system_ip)
+    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
     Cluster(cluster_name, placement_group, security_group_id, file_system_id, cluster_nodes)
 end
 
