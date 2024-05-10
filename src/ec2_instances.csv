@@ -1,0 +1,5 @@
+instance_type, instance_name, memory_size, compute_units, vcpus_count, accelerator_count, accelerator_type, accelerator_arch, accelerator_model, processor_model, storage_type, storage_size, processor_arch, interconnection_type
+C5HighCPU24xlarge, c5d.24xlarge, 192.0G, 375, 96, 0, na, na, na, IntelXeonPlatinum8275L, 3600G, NVMeSSD, X86_64, 25G
+P4DHighestPerformanceGPU24xlarge, p4d.24xlarge, 1152.0G, 345, 96, 8, GPU, NVIDIA_Ampere, NVIDIA_A100, IntelXeonPlatinum8275L, 8000G, NVMeSSD, X86_64, 400G
+G5G16xlarge, g5g.16xlarge, 128.0G, unknown, 64, 2, NVIDIA_TensorCore, NVIDIA_Turing, NVIDIATesla_T4G, AWSGraviton2, 0, EBS, Arm64, 25G
+T2Medium, t2.medium, 4.0G, unkown, 2, 0, na, na, na, IntelXeonFamily, 0, EBS, I386, unknown
