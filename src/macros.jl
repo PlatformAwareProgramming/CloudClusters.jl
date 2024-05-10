@@ -3,10 +3,10 @@
 macro cluster()
 end
 
-macro resolve()
+macro resolve(contract_id)
 end
 
-macro deploy()
+macro deploy(contract_id)
 end
 
 macro cluster_resolve()

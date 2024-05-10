@@ -28,13 +28,30 @@ struct Cluster
     cluster_nodes::Dict{String, String}
 end
 
-function create_cluster(cluster_name, instance_type, image_id, key_name, count)
+default_subnet_id() = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
+default_security_group_id() = create_security_group(cluster_name, "Grupo $cluster_name")
+default_image_id() = ""                    # read from a CloudClousters.toml config file
+default_keyname() = ""                     # read from a CloudClousters.toml config file
+default_user() = "ubuntu"                  # read from a CloudClousters.toml config file
+
+function create_cluster(_::Type{PeerWorkers},
+                        cluster_handle, 
+                        instance_type, 
+                        count, 
+                        image_id,
+                        key_name,
+                        subnet_id,
+                        placement_group,
+                        security_group_id,                        
+                    )
+    cluster_name = string(cluster_handle)
+
     # Eu vou recuperar a primeira subrede e utilizá-la. Na prática não faz diferença, mas podemos depois criar uma função para escolher a subrede e VPC.
-    subnet_id = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
+    #subnet_id = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
     println("Subnet ID: $subnet_id")
-    placement_group = create_placement_group(cluster_name)
+    #placement_group = create_placement_group(cluster_name)
     println("Placement Group: $placement_group")
-    security_group_id = create_security_group(cluster_name, "Grupo $cluster_name")
+    #security_group_id = create_security_group(cluster_name, "Grupo $cluster_name")
     println("Security Group ID: $security_group_id")
     file_system_id = create_efs(subnet_id, security_group_id)
     println("File System ID: $file_system_id")
@@ -44,19 +61,39 @@ function create_cluster(cluster_name, instance_type, image_id, key_name, count)
     Cluster(cluster_name, placement_group, security_group_id, file_system_id, cluster_nodes)
 end
 
+function create_cluster(_::Type{ManagerWorkers}, 
+                        cluster_handle, 
+                        instance_type_master, 
+                        instance_type_worker,
+                        count,
+                        image_id_master, 
+                        image_id_worker,
+                        user_master,
+                        user_worker,
+                        key_name_master,
+                        key_name_worker, 
+                        subnet_id,
+                        placement_group,
+                        security_group_id,                        
+                    )
+
+    #TODO
+
+end
+
 function get_ips(c)
     ips = Dict()
     for (node, id) in c.cluster_nodes
         public_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
         private_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
-        ips[node]=Dict("public_ip" => public_ip, "private_ip" => private_ip)
+        ips[node]=Dict(:public_ip => public_ip, :private_ip => private_ip)
     end
     ips
 end
 
-function delete_cluster(cluster_handle::Cluster)
-    delete_instances(cluster_handle.cluster_nodes)
-    for instance in cluster_handle.cluster_nodes
+function delete_cluster(contract_handle::Cluster)
+    delete_instances(contract_handle.cluster_nodes)
+    for instance in contract_handle.cluster_nodes
         status = get_instance_status(instance[2])
         while status != "terminated"
             println("Waiting for instances to terminate...")
@@ -64,9 +101,9 @@ function delete_cluster(cluster_handle::Cluster)
             status = get_instance_status(instance[2])
         end
     end
-    delete_efs(cluster_handle.file_system_id)
-    delete_security_group(cluster_handle.security_group_id)
-    delete_placement_group(cluster_handle.placement_group)
+    delete_efs(contract_handle.file_system_id)
+    delete_security_group(contract_handle.security_group_id)
+    delete_placement_group(contract_handle.placement_group)
 end
 
 #=
