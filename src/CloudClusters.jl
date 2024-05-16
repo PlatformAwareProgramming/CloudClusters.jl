@@ -5,14 +5,7 @@ using MPIClusterManagers
 using PlatformAware
 
 include("config/configs.jl")
-#include("features/qualifiers/general.jl")
 include("features/features.jl")
-#include("features/qualifiers/ec2.jl")
-#include("features/qualifiers/gcp.jl")
-#include("features/qualifiers/nvidia.jl")
-#include("features/quantifiers/atleast.jl")
-#include("features/quantifiers/atmost.jl")
-#include("features/quantifiers/macros.jl")
 include("cluster.jl")
 include("resolve.jl")
 include("deploy.jl")
