@@ -1,22 +1,10 @@
-abstract type PlatformType end
 
-abstract type QuantifierFeature <: PlatformType end
-abstract type QualifierFeature <: PlatformType end
 
-# Accelerator Types
-
-abstract type AcceleratorType <: QualifierFeature end
-abstract type GPU <: AcceleratorType end
-abstract type FPGA <: AcceleratorType end
-abstract type MIC <: AcceleratorType end
-
-abstract type Google_TPU <: GPU end
 abstract type NVIDIA_TensorCore <: GPU end
 
-# NVIDIA Architectures
+# Accelerator Architectures
 
-abstract type AcceleratorArch <: QualifierFeature end
-abstract type NVIDIA_Architecture <: AcceleratorArch end
+abstract type NVIDIA_Architecture <: FAccelArch end
 
 abstract type NVIDIA_Farenheit <: NVIDIA_Architecture end
 abstract type NVIDIA_Celsius <: NVIDIA_Farenheit end
@@ -40,7 +28,7 @@ abstract type NVIDIA_Hopper <: NVIDIA_Ampere end
 
 abstract type AcceleratorModel <: QualifierFeature end
 
-abstract type NVIDIA_Model <: AcceleratorArch end
+abstract type NVIDIA_Model <: FAccelModel end
 
 abstract type NVIDIATesla <: NVIDIA_Model end
 

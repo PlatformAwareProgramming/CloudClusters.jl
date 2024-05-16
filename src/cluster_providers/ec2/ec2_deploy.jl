@@ -28,15 +28,15 @@ function deploy_cluster(_::Type{EC2Cluster},
 
     count = get(cluster_features, :cluster_nodes,1)
 
-    if haskey(cluster_features[:master_features], :image_id) &&
-       haskey(cluster_features[:worker_features], :image_id) &&
-      !haskey(cluster_features, :image_id) 
-       image_id_master = cluster_features[:master_features][:image_id]     
-       image_id_worker = cluster_features[:worker_features][:image_id]     
-     elseif haskey(cluster_features, :image_id) 
-       image_id_master = image_id_worker = cluster_features[:image_id]     
+    if haskey(cluster_features[:master_features], :imageid) &&
+       haskey(cluster_features[:worker_features], :imageid) &&
+      !haskey(cluster_features, :imageid) 
+       imageid_master = cluster_features[:master_features][:imageid]     
+       imageid_worker = cluster_features[:worker_features][:imageid]     
+     elseif haskey(cluster_features, :imageid) 
+       imageid_master = imageid_worker = cluster_features[:imageid]     
      else
-       image_id_master = image_id_worker = default_image_id()    
+       imageid_master = imageid_worker = default_imageid()    
      end
  
     if haskey(cluster_features[:master_features], :user) &&
@@ -50,15 +50,15 @@ function deploy_cluster(_::Type{EC2Cluster},
       user_master = user_worker = default_user()
     end
 
-    if haskey(cluster_features[:master_features], :key_name) &&
-       haskey(cluster_features[:worker_features], :key_name) &&
-      !haskey(cluster_features, :key_name) 
-      key_name_master = cluster_features[:master_features][:key_name]     
-      key_name_worker = cluster_features[:worker_features][:key_name]     
-    elseif haskey(cluster_features, :key_name) 
-      key_name_master = key_name_worker = cluster_features[:key_name]     
+    if haskey(cluster_features[:master_features], :keyname) &&
+       haskey(cluster_features[:worker_features], :keyname) &&
+      !haskey(cluster_features, :keyname) 
+      keyname_master = cluster_features[:master_features][:keyname]     
+      keyname_worker = cluster_features[:worker_features][:keyname]     
+    elseif haskey(cluster_features, :keyname) 
+      keyname_master = keyname_worker = cluster_features[:keyname]     
     else
-      key_name_master = key_name_worker = default_key_name()
+      keyname_master = keyname_worker = default_keyname()
     end
 
     subnet_id = get(cluster_features, :subnet_id, default_subnet_id())
@@ -70,12 +70,12 @@ function deploy_cluster(_::Type{EC2Cluster},
                              instance_type_master, 
                              instance_type_worker,
                              count,
-                             image_id_master, 
-                             image_id_worker,
+                             imageid_master, 
+                             imageid_worker,
                              user_master,
                              user_worker,
-                             key_name_master,
-                             key_name_worker, 
+                             keyname_master,
+                             keyname_worker, 
                              subnet_id,
                              placement_group,
                              security_group_id)
@@ -84,7 +84,7 @@ function deploy_cluster(_::Type{EC2Cluster},
 
     ips = get_ips(cluster) 
     
-    return ips[:master], user_master, key_name_master
+    return ips[:master], user_master, keyname_master
 end
 
 
@@ -100,10 +100,10 @@ function deploy_cluster(_::Type{EC2Cluster},
                        )
     #= the necessary information to perform cluster operations (interrupt, continue, terminate) =#
 
-    count = get(cluster_features, :cluster_nodes,1)
-    image_id = get(cluster_features, :image_id, default_image_id()) 
+    count = get(cluster_features, :cluster_nodes, 1)
+    imageid = get(cluster_features, :imageid, default_imageid()) 
     user = get(cluster_features, :user, default_user()) 
-    key_name = get(cluster_features, :key_name, default_key_name())
+    keyname = get(cluster_features, :keyname, default_keyname())
     subnet_id = get(cluster_features, :subnet_id, default_subnet_id())
     placement_group = get(cluster_features, :placement_group, create_placement_group(cluster_handle))  
     security_group_id = get(cluster_features, :security_group_id, default_security_group_id()) 
@@ -112,9 +112,9 @@ function deploy_cluster(_::Type{EC2Cluster},
                              cluster_handle, 
                              instance_type,
                              count,
-                             image_id, 
+                             imageid, 
                              user,
-                             key_name,
+                             keyname,
                              subnet_id,
                              placement_group,
                              security_group_id)
@@ -123,7 +123,7 @@ function deploy_cluster(_::Type{EC2Cluster},
 
     ips = get_ips(cluster)
 
-    return ips[:peers], user, key_name
+    return ips[:peers], user, keyname
 end
 
 #==== INTERRUPT CLUSTER ====#

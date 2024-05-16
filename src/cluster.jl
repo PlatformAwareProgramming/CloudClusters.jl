@@ -44,6 +44,6 @@ end
 
 
 function forget_cluster(contract_handle)
-    delete!(cluster_contract, contract_handle)
+    delete!(cluster_contract, contract_handle) 
 end
 

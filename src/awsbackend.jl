@@ -30,16 +30,16 @@ end
 
 default_subnet_id() = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
 default_security_group_id() = create_security_group(cluster_name, "Grupo $cluster_name")
-default_image_id() = ""                    # read from a CloudClousters.toml config file
-default_keyname() = ""                     # read from a CloudClousters.toml config file
-default_user() = "ubuntu"                  # read from a CloudClousters.toml config file
+default_imageid() = defaults_dict[:imageid]
+default_keyname() = defaults_dict[:keyname]
+default_user() = defaults_dict[:user] 
 
 function create_cluster(_::Type{PeerWorkers},
                         cluster_handle, 
                         instance_type, 
                         count, 
-                        image_id,
-                        key_name,
+                        imageid,
+                        keyname,
                         subnet_id,
                         placement_group,
                         security_group_id,                        
@@ -57,7 +57,7 @@ function create_cluster(_::Type{PeerWorkers},
     println("File System ID: $file_system_id")
     file_system_ip = get_mount_target_ip(file_system_id)
     println("File System IP: $file_system_ip")
-    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
+    cluster_nodes = create_instances(cluster_name, instance_type, imageid, keyname, count, placement_group, security_group_id, subnet_id, file_system_ip)
     Cluster(cluster_name, placement_group, security_group_id, file_system_id, cluster_nodes)
 end
 
@@ -66,12 +66,12 @@ function create_cluster(_::Type{ManagerWorkers},
                         instance_type_master, 
                         instance_type_worker,
                         count,
-                        image_id_master, 
-                        image_id_worker,
+                        imageid_master, 
+                        imageid_worker,
                         user_master,
                         user_worker,
-                        key_name_master,
-                        key_name_worker, 
+                        keyname_master,
+                        keyname_worker, 
                         subnet_id,
                         placement_group,
                         security_group_id,                        
@@ -169,7 +169,7 @@ Foi preciso editar as linhas 29578 e 29598 do arquivo ~/.julia/packages/AWS/3Zvz
 Precisa usar no mínimo c6i.large.
 =#
 
-function create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
+function create_instances(cluster_name, instance_type, imageid, keyname, count, placement_group, security_group_id, subnet_id, file_system_ip)
     cluster_nodes = Dict()
     user_data = "#!/bin/bash
 apt-get -y install nfs-common
@@ -180,8 +180,8 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
     user_data_base64 = base64encode(user_data)
     params = Dict(
         "InstanceType" => instance_type,
-        "ImageId" => image_id,
-        "KeyName" => key_name,
+        "ImageId" => imageid,
+        "KeyName" => keyname,
         "Placement" => Dict("GroupName" => placement_group),
         "SecurityGroupId" => [security_group_id],
         "SubnetId" => subnet_id,
