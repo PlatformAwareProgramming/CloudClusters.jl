@@ -23,6 +23,7 @@ for subdir in subdirs
     new_content = replace(content, "Dict{String,Any}(\"groupName\" => groupName);" => "Dict{String,Any}(\"GroupName\" => groupName);")
     new_content = replace(new_content, "\"MaxCount\" => MaxCount, \"MinCount\" => MinCount, \"clientToken\" => string(uuid4())" => 
                                        "\"MaxCount\" => MaxCount, \"MinCount\" => MinCount, \"ClientToken\" => string(uuid4())")
+    new_content = replace(new_content, "\"clientToken\" => string(uuid4())" =>  "\"ClientToken\" => string(uuid4())")
     open(ec2_file, "w") do io
         write(io, new_content)
     end
@@ -105,9 +106,6 @@ function create_placement_group(name)
     Ec2.create_placement_group(params)["placementGroup"]["groupName"]
 end
 
-#=
-Foi preciso editar as linhas 9556 e 9569 do arquivo ~/.julia/packages/AWS/3Zvz1/src/services/ec2.jl e trocar o valor de groupName para GroupName.
-=#
 function delete_placement_group(name)
     params = Dict("GroupName" => name)
     Ec2.delete_placement_group(name)
@@ -147,7 +145,6 @@ end
 
 #=
 Instâncias
-Foi preciso editar as linhas 29578 e 29598 do arquivo ~/.julia/packages/AWS/3Zvz1/src/services/ec2.jl e trocar o valor de clientToken para ClientToken.
 Precisa usar no mínimo c6i.large.
 =#
 
