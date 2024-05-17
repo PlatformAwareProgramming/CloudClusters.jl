@@ -20,12 +20,19 @@ function __init__()
        load!()
 end
 
-export cluster_create, 
-       cluster_resolve, is_resolved, 
-       cluster_deploy, 
-       cluster_interrupt, 
-       cluster_continue, 
-       cluster_terminate
+# Lifecycle
+export cluster_create, @cluster,
+       cluster_resolve, @resolve, is_resolved, 
+       cluster_deploy, @deploy,
+       cluster_interrupt, @interrupt,
+       cluster_resume, @resume,
+       cluster_terminate, @terminate
+
+# Cluster types
+export ManagerWorkers, PeerWorkers
+
+# Feature types
+export PlatformAware, select_instances_by_features
 
 
 end # end CloudCluster

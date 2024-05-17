@@ -28,7 +28,7 @@ end
 
 #==== CONTINUE CLUSTER ====#
 
-function continue_cluster(wid, type::Type{GCPCluster})
+function resume_cluster(wid, type::Type{GCPCluster})
     
 end
 

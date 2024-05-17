@@ -30,12 +30,14 @@ abstract type PeerWorkers <: ClusterType end      # sem distinção de nó maste
 
 cluster_contract = Dict()
 
-function cluster_create(cluster_type::Type{<:ClusterType}, cluster_features, contract_handle)
+#function cluster_create(cluster_type::Type{<:ClusterType}, cluster_features)
+function cluster_create(args...)
+    
+    cluster_features = Dict{Symbol, Any}(args)
 
-    if haskey(cluster_contract, contract_handle)
-        @error "a cluster contract with handle $contract_handle exists."
-        return nothing
-    end
+    cluster_type = cluster_features[:cluster_type]
+
+    contract_handle = gensym()
 
     cluster_contract[contract_handle] = (cluster_type, cluster_features)
 

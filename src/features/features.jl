@@ -9,8 +9,10 @@ instance_features_order = [:node_provider,
                            :accelerator_count,
                            :accelerator_type,       #
                            :accelerator_architecture,       #
+                           :accelerator_manufacturer,
                            :accelerator, 
                            :processor, 
+                           :processor_manufacturer,
                            :processor_microarchitecture,         #
                            :storage_type, 
                            :storage_size,           
@@ -24,8 +26,10 @@ instance_features = Dict(:node_provider => CloudProvider,
                          :accelerator_count => Tuple{AtLeast0,AtMostInf,Q} where Q,   
                          :accelerator_type => AcceleratorType,    
                          :accelerator_architecture => AcceleratorArchitecture,    
+                         :accelerator_manufacturer => Manufacturer,
                          :accelerator => Accelerator,   
                          :processor => Processor,     
+                         :processor_manufacturer => Manufacturer,
                          :processor_microarchitecture => ProcessorMicroarchitecture,      
                          :storage_type => StorageType,        
                          :storage_size => Tuple{AtLeast0,AtMostInf,Q} where Q,        
@@ -43,8 +47,10 @@ instance_features_type = Dict(
                            :accelerator_count => PlatformAware.quantifier,
                            :accelerator_type => PlatformAware.qualifier,       #
                            :accelerator_architecture => PlatformAware.qualifier,       #
+                           :accelerator_manufacturer => PlatformAware.qualifier,
                            :accelerator => PlatformAware.qualifier, 
                            :processor => PlatformAware.qualifier, 
+                           :processor_manufacturer => PlatformAware.qualifier,
                            :processor_microarchitecture => PlatformAware.qualifier,         #
                            :storage_type => PlatformAware.qualifier, 
                            :storage_size => PlatformAware.quantifier,           

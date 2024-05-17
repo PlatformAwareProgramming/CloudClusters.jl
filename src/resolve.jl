@@ -9,12 +9,17 @@ end
 
 function cluster_resolve(_::Type{<:ManagerWorkers}, cluster_features, contract_handle)
 
-    master_features = get(cluster_features, :master_features, cluster_features)
-    worker_features = get(cluster_features, :worker_features, cluster_features)
+    !haskey(cluster_features, :manager_features) && @warn ":manager_features not specified"
+    !haskey(cluster_features, :worker_features) && @warn ":worker_features not specified"
 
-    master_features[:node_provider] = worker_features[:node_provider] = cluster_features[:node_provider]
+    manager_features = Dict{Symbol,Any}(get(cluster_features, :manager_features, cluster_features))
+    worker_features = Dict{Symbol,Any}(get(cluster_features, :worker_features, cluster_features))
 
-    instance_type_master = call_resolve(master_features)
+    manager_features[:node_provider] = worker_features[:node_provider] = cluster_features[:node_provider]
+
+    @info manager_features
+
+    instance_type_master = call_resolve(manager_features)
     instance_type_worker = call_resolve(worker_features)
     
     cluster_contract_resolved[contract_handle] = (instance_type_master, instance_type_worker)
@@ -46,8 +51,6 @@ function call_resolve(features)
            push!(resolve_args, instance_features[par] #=getfield(@__MODULE__, instance_features[par])=#)
         end
     end
-
-#    @info resolve_args
 
     #instance_type = @eval resolve($resolve_args...)
     instance_type = resolve(resolve_args...)

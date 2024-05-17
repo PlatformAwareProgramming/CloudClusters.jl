@@ -4,14 +4,14 @@ ec2_cluster_info = Dict()
 # 1. creates a worker process in the master node
 # 2. from the master node, create worker processes in the compute nodes with MPIClusterManager
 function deploy_cluster(type::Type{EC2Cluster}, _::Type{LinkMode}, features)
-    #= the necessary information to perform cluster operations (interrupt, continue, terminate) =#
+    #= the necessary information to perform cluster operations (interrupt, resume, terminate) =#
 
 end
 
 # 1. run the script to clusterize the nodes
 # 2. call deploy_cluster to link ...
 function deploy_cluster(type::Type{EC2Cluster}, _::Type{ClusterizeMode}, features)
-    #= the necessary information to perform cluster operations (interrupt, continue, terminate) =#
+    #= the necessary information to perform cluster operations (interrupt, resume, terminate) =#
 
 end
 
@@ -24,14 +24,14 @@ function deploy_cluster(_::Type{EC2Cluster},
                         cluster_features,
                         instance_type_master,
                         instance_type_worker)
-    #= the necessary information to perform cluster operations (interrupt, continue, terminate) =#
+    #= the necessary information to perform cluster operations (interrupt, resume, terminate) =#
 
     count = get(cluster_features, :cluster_nodes,1)
 
-    if haskey(cluster_features[:master_features], :imageid) &&
+    if haskey(cluster_features[:manager_features], :imageid) &&
        haskey(cluster_features[:worker_features], :imageid) &&
       !haskey(cluster_features, :imageid) 
-       imageid_master = cluster_features[:master_features][:imageid]     
+       imageid_master = cluster_features[:manager_features][:imageid]     
        imageid_worker = cluster_features[:worker_features][:imageid]     
      elseif haskey(cluster_features, :imageid) 
        imageid_master = imageid_worker = cluster_features[:imageid]     
@@ -39,10 +39,10 @@ function deploy_cluster(_::Type{EC2Cluster},
        imageid_master = imageid_worker = default_imageid()    
      end
  
-    if haskey(cluster_features[:master_features], :user) &&
+    if haskey(cluster_features[:manager_features], :user) &&
        haskey(cluster_features[:worker_features], :user) &&
       !haskey(cluster_features, :user) 
-      user_master = cluster_features[:master_features][:user]
+      user_master = cluster_features[:manager_features][:user]
       user_worker = cluster_features[:worker_features][:user]
     elseif haskey(cluster_features, :user) 
       user_master = user_worker = cluster_features[:user]     
@@ -50,10 +50,10 @@ function deploy_cluster(_::Type{EC2Cluster},
       user_master = user_worker = default_user()
     end
 
-    if haskey(cluster_features[:master_features], :keyname) &&
+    if haskey(cluster_features[:manager_features], :keyname) &&
        haskey(cluster_features[:worker_features], :keyname) &&
       !haskey(cluster_features, :keyname) 
-      keyname_master = cluster_features[:master_features][:keyname]     
+      keyname_master = cluster_features[:manager_features][:keyname]     
       keyname_worker = cluster_features[:worker_features][:keyname]     
     elseif haskey(cluster_features, :keyname) 
       keyname_master = keyname_worker = cluster_features[:keyname]     
@@ -98,7 +98,7 @@ function deploy_cluster(_::Type{EC2Cluster},
                         cluster_features,
                         instance_type
                        )
-    #= the necessary information to perform cluster operations (interrupt, continue, terminate) =#
+    #= the necessary information to perform cluster operations (interrupt, resume, terminate) =#
 
     count = get(cluster_features, :cluster_nodes, 1)
     imageid = get(cluster_features, :imageid, default_imageid()) 
@@ -134,7 +134,7 @@ end
 
 #==== CONTINUE CLUSTER ====#
 
-function continue_cluster(wid, type::Type{EC2Cluster})
+function resume_cluster(wid, type::Type{EC2Cluster})
     
 end
 
