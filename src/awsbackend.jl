@@ -9,6 +9,25 @@ For this module to work, you`ll need AWS credentials in the ${HOME}/.aws directo
 3. Create EC2 instances and attach them to the EFS.
 =# 
 
+using AWS
+println("Adaptando o código do Módulo AWS.jl...")
+using FilePathsBase
+aws_package_dir = ENV["HOME"] * "/.julia/packages/AWS"
+all_entries = readdir(aws_package_dir)
+subdirs = filter(entry -> isdir(joinpath(aws_package_dir, entry)), all_entries)
+
+for subdir in subdirs
+    ec2_file = joinpath(aws_package_dir, subdir, "src", "services", "ec2.jl")
+    chmod(ec2_file, 0o644)
+    content = read(ec2_file, String)
+    new_content = replace(content, "Dict{String,Any}(\"groupName\" => groupName);" => "Dict{String,Any}(\"GroupName\" => groupName);")
+    new_content = replace(new_content, "\"MaxCount\" => MaxCount, \"MinCount\" => MinCount, \"clientToken\" => string(uuid4())" => 
+                                       "\"MaxCount\" => MaxCount, \"MinCount\" => MinCount, \"ClientToken\" => string(uuid4())")
+    open(ec2_file, "w") do io
+        write(io, new_content)
+    end
+end
+
 using Random
 using AWS: @service
 using Serialization
@@ -28,57 +47,20 @@ struct Cluster
     cluster_nodes::Dict{String, String}
 end
 
-default_subnet_id() = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
-default_security_group_id() = create_security_group(cluster_name, "Grupo $cluster_name")
-default_imageid() = defaults_dict[:imageid]
-default_keyname() = defaults_dict[:keyname]
-default_user() = defaults_dict[:user] 
-
-function create_cluster(_::Type{PeerWorkers},
-                        cluster_handle, 
-                        instance_type, 
-                        count, 
-                        imageid,
-                        keyname,
-                        subnet_id,
-                        placement_group,
-                        security_group_id,                        
-                    )
-    cluster_name = string(cluster_handle)
-
+function create_cluster(cluster_name, instance_type, image_id, key_name, count)
     # Eu vou recuperar a primeira subrede e utilizá-la. Na prática não faz diferença, mas podemos depois criar uma função para escolher a subrede e VPC.
-    #subnet_id = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
+    subnet_id = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
     println("Subnet ID: $subnet_id")
-    #placement_group = create_placement_group(cluster_name)
+    placement_group = create_placement_group(cluster_name)
     println("Placement Group: $placement_group")
-    #security_group_id = create_security_group(cluster_name, "Grupo $cluster_name")
+    security_group_id = create_security_group(cluster_name, "Grupo $cluster_name")
     println("Security Group ID: $security_group_id")
     file_system_id = create_efs(subnet_id, security_group_id)
     println("File System ID: $file_system_id")
     file_system_ip = get_mount_target_ip(file_system_id)
     println("File System IP: $file_system_ip")
-    cluster_nodes = create_instances(cluster_name, instance_type, imageid, keyname, count, placement_group, security_group_id, subnet_id, file_system_ip)
+    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
     Cluster(cluster_name, placement_group, security_group_id, file_system_id, cluster_nodes)
-end
-
-function create_cluster(_::Type{ManagerWorkers}, 
-                        cluster_handle, 
-                        instance_type_master, 
-                        instance_type_worker,
-                        count,
-                        imageid_master, 
-                        imageid_worker,
-                        user_master,
-                        user_worker,
-                        keyname_master,
-                        keyname_worker, 
-                        subnet_id,
-                        placement_group,
-                        security_group_id,                        
-                    )
-
-    #TODO
-
 end
 
 function get_ips(c)
@@ -86,14 +68,14 @@ function get_ips(c)
     for (node, id) in c.cluster_nodes
         public_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
         private_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
-        ips[node]=Dict(:public_ip => public_ip, :private_ip => private_ip)
+        ips[node]=Dict("public_ip" => public_ip, "private_ip" => private_ip)
     end
     ips
 end
 
-function delete_cluster(contract_handle::Cluster)
-    delete_instances(contract_handle.cluster_nodes)
-    for instance in contract_handle.cluster_nodes
+function delete_cluster(cluster_handle::Cluster)
+    delete_instances(cluster_handle.cluster_nodes)
+    for instance in cluster_handle.cluster_nodes
         status = get_instance_status(instance[2])
         while status != "terminated"
             println("Waiting for instances to terminate...")
@@ -101,9 +83,9 @@ function delete_cluster(contract_handle::Cluster)
             status = get_instance_status(instance[2])
         end
     end
-    delete_efs(contract_handle.file_system_id)
-    delete_security_group(contract_handle.security_group_id)
-    delete_placement_group(contract_handle.placement_group)
+    delete_efs(cluster_handle.file_system_id)
+    delete_security_group(cluster_handle.security_group_id)
+    delete_placement_group(cluster_handle.placement_group)
 end
 
 #=
@@ -169,7 +151,7 @@ Foi preciso editar as linhas 29578 e 29598 do arquivo ~/.julia/packages/AWS/3Zvz
 Precisa usar no mínimo c6i.large.
 =#
 
-function create_instances(cluster_name, instance_type, imageid, keyname, count, placement_group, security_group_id, subnet_id, file_system_ip)
+function create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
     cluster_nodes = Dict()
     user_data = "#!/bin/bash
 apt-get -y install nfs-common
@@ -180,8 +162,8 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
     user_data_base64 = base64encode(user_data)
     params = Dict(
         "InstanceType" => instance_type,
-        "ImageId" => imageid,
-        "KeyName" => keyname,
+        "ImageId" => image_id,
+        "KeyName" => key_name,
         "Placement" => Dict("GroupName" => placement_group),
         "SecurityGroupId" => [security_group_id],
         "SubnetId" => subnet_id,
