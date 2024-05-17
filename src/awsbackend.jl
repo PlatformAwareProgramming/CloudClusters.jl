@@ -33,6 +33,7 @@ using Random
 using AWS: @service
 using Serialization
 using Base64
+using Sockets
 @service Ec2 
 @service Efs
 
@@ -144,7 +145,7 @@ function delete_security_group(id)
 end
 
 #=
-Instâncias
+Versão com sistema de arquivo compartilhado.
 Precisa usar no mínimo c6i.large.
 =#
 
@@ -193,6 +194,116 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
     else
         return cluster_nodes
     end
+    cluster_nodes
+end
+
+#=
+Versão sem sistema de arquivos compartilhado.
+=#
+function create_instances(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count, security_group_id, subnet_id)
+    # Dicionário com o nome e id das instâncias.
+    cluster_nodes = Dict()
+    
+    # Criar chave interna pública e privada do SSH.
+    chars = ['a':'z'; 'A':'Z'; '0':'9']
+    random_suffix = join(chars[Random.rand(1:length(chars), 5)])
+    internal_key_name = cluster_name * random_suffix
+    run(`ssh-keygen -f /tmp/$internal_key_name -N ""`)
+    private_key = base64encode(read("/tmp/$internal_key_name", String))
+    public_key = base64encode(read("/tmp/$internal_key_name.pub", String))
+   
+    # Define o script que irá instalar a chave pública e privada no headnode e workers.
+    user_data = "#!/bin/bash
+echo $private_key | base64 -d > /home/ubuntu/.ssh/$cluster_name
+echo $public_key | base64 -d > /home/ubuntu/.ssh/$cluster_name.pub
+echo 'Host *
+    IdentityFile /home/ubuntu/.ssh/$cluster_name
+    StrictHostKeyChecking no' > /home/ubuntu/.ssh/config
+cat /home/ubuntu/.ssh/$cluster_name.pub >> /home/ubuntu/.ssh/authorized_keys
+chown -R ubuntu.ubuntu /home/ubuntu/.ssh
+chmod 600 /home/ubuntu/.ssh/*
+"
+    user_data_base64 = base64encode(user_data)
+    
+    # Criando o headnode
+    params = Dict(
+        "InstanceType" => instance_type_headnode,
+        "ImageId" => image_id,
+        "KeyName" => key_name,
+        "SecurityGroupId" => [security_group_id],
+        "SubnetId" => subnet_id,
+        "TagSpecification" => 
+            Dict(
+                "ResourceType" => "instance",
+                "Tag" => [Dict("Key" => "cluster", "Value" => cluster_name),
+                          Dict("Key" => "Name", "Value" => "headnode") ]
+            ),
+        "UserData" => user_data_base64,
+    )
+
+    instance_headnode = Ec2.run_instances(1,1,params)
+    cluster_nodes["headnode"] = instance_headnode["instancesSet"]["item"]["instanceId"]
+
+    # Criando os worker nodes.
+    params["TagSpecification"]["Tag"][2]["Value"] = "worker"
+    params["InstanceType"] = instance_type_worker;
+    instances_workers = Ec2.run_instances(count,count,params)
+    for i in 1:count
+        instance = ""
+        if count > 1
+            instance = instances_workers["instancesSet"]["item"][i]
+        elseif count == 1
+            instance = instances_workers["instancesSet"]["item"]
+        end
+        instance_id = instance["instanceId"]
+        cluster_nodes["worker$i"] = instance_id
+    end
+
+    # Esperando todo mundo estar pronto.
+    for instance in keys(cluster_nodes)
+        while get_instance_status(cluster_nodes[instance]) != "running"
+            println("Waiting for $instance to be running...")
+            sleep(5)
+        end
+    end
+
+    # Testando se a conexão SSH está ativa.
+    for instance in keys(cluster_nodes)
+        public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
+        connection_ok = false
+        while ! connection_ok
+            try
+                connect(public_ip, 22)
+                connection_ok = true
+            catch e
+                println("Waiting for $instance to be acessible...")
+                sleep(5)
+            end
+        end
+    end
+
+    # Criando o arquivo hostfile.
+    hostfile_content = ""
+    for instance in keys(cluster_nodes)
+        private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
+        hostfile_content *= "$instance $private_ip\n"
+    end
+
+    # Atualiza o hostname e o hostfile.
+    for instance in keys(cluster_nodes)
+        public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
+        private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfile_content' > /home/ubuntu/hostfile"`)
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown ubuntu:ubuntu /etc/hosts"`)
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "cat hosts.tmp >> /etc/hosts"`)
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown root:root /etc/hosts"`)
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "rm hosts.tmp"`)
+    end
+
+    rm("/tmp/$internal_key_name")
+    rm("/tmp/$internal_key_name.pub")
     cluster_nodes
 end
 
