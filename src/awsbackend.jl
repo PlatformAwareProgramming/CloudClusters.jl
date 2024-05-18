@@ -38,12 +38,26 @@ using Sockets
 @service Efs
 
 #=
+Como utilizar. Escolher uma das quatro opções abaixo.
+cluster = ManagerWorkersWithoutSharedFS("pargocad", "c6i.large", "c6i.large", 4, "jmhal", "ami-04b70fa74e45c3917", nothing, nothing)
+cluster = PeersWorkersWithoutSharedFS("pargocad", "c6i.large", 4, "jmhal", "ami-04b70fa74e45c3917", nothing, nothing)
+cluster = ManagerWorkersWithSharedFS("pargocad", "c6i.large", "c6i.large", 4,"jmhal", "ami-04b70fa74e45c3917", nothing, nothing)
+cluster = PeersWorkersWithSharedFS("pargocad", "c6i.large", 4, "jmhal", "ami-04b70fa74e45c3917", nothing, nothing)
+
+Depois:
+cluster_handle = create_cluster(cluster)
+get_ips_instance(cluster_handle.cluster_nodes["peer1"]) ou get_ips_instance(cluster_handle.cluster_nodes["headnode"]) para pegar os IPs.
+
+Finalmente:
+delete_cluster(cluster_handle)
+=#
+
+#=
 Estrutura para Armazenar as informações e função de criação do cluster
 =#
 
-
-
-struct Environment
+abstract type Environment end
+mutable struct EnvironmentWithSharedFS <: Environment
     subnet_id::String
     placement_group::String
     security_group_id::String
@@ -51,13 +65,59 @@ struct Environment
     file_system_ip::String
 end
 
-struct Cluster
-    name::String
-    environment::Environment
-    cluster_nodes::Dict{String, String}
+mutable struct EnvironmentWithoutSharedFS <: Environment
+    subnet_id::String
+    placement_group::String
+    security_group_id::String
 end
 
-function create_environment(cluster_name)
+abstract type Cluster end
+abstract type PeersWorkers <: Cluster end
+abstract type ManagerWorkers <: Cluster end
+
+mutable struct ManagerWorkersWithSharedFS <: ManagerWorkers
+    name::String
+    instance_type_headnode::String
+    instance_type_worker::String
+    count::Int
+    key_name::String
+    image_id::String
+    environment::Union{EnvironmentWithSharedFS, Nothing}
+    cluster_nodes::Union{Dict{String, String}, Nothing}
+end
+
+mutable struct ManagerWorkersWithoutSharedFS <: ManagerWorkers
+    name::String
+    instance_type_headnode::String
+    instance_type_worker::String
+    count::Int
+    key_name::String
+    image_id::String
+    environment::Union{EnvironmentWithoutSharedFS, Nothing}
+    cluster_nodes::Union{Dict{String, String}, Nothing}
+end
+
+mutable struct PeersWorkersWithSharedFS <: PeersWorkers
+    name::String
+    instance_type_peer::String
+    count::Int
+    key_name::String
+    image_id::String
+    environment::Union{EnvironmentWithSharedFS, Nothing}
+    cluster_nodes::Union{Dict{String, String}, Nothing}
+end
+
+mutable struct PeersWorkersWithoutSharedFS <: PeersWorkers
+    name::String
+    instance_type_peer::String
+    count::Int
+    key_name::String
+    image_id::String
+    environment::Union{EnvironmentWithoutSharedFS, Nothing}
+    cluster_nodes::Union{Dict{String, String}, Nothing}
+end
+
+function create_environment(cluster_name::String, shared_fs::Bool)
     # Eu vou recuperar a primeira subrede e utilizá-la. Na prática não faz diferença, mas podemos depois criar uma função para escolher a subrede e VPC.
     subnet_id = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
     println("Subnet ID: $subnet_id")
@@ -65,18 +125,32 @@ function create_environment(cluster_name)
     println("Placement Group: $placement_group")
     security_group_id = create_security_group(cluster_name, "Grupo $cluster_name")
     println("Security Group ID: $security_group_id")
-    file_system_id = create_efs(subnet_id, security_group_id)
-    println("File System ID: $file_system_id")
-    file_system_ip = get_mount_target_ip(file_system_id)
-    println("File System IP: $file_system_ip")
-    Environment(subnet_id, placement_group, security_group_id, file_system_id, file_system_ip)
+
+    if (shared_fs)
+        file_system_id = create_efs(subnet_id, security_group_id)
+        println("File System ID: $file_system_id")
+        file_system_ip = get_mount_target_ip(file_system_id)
+        println("File System IP: $file_system_ip")
+        env = EnvironmentWithSharedFS(subnet_id, placement_group, security_group_id, file_system_id, file_system_ip)
+        return env
+    else
+        env = EnvironmentWithoutSharedFS(subnet_id, placement_group, security_group_id)
+        return env
+    end
 end
 
-function create_cluster(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count)
-    env = create_environment(cluster_name)
-    cluster_nodes = create_instances(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count, env.placement_group, env.security_group_id, env.subnet_id, env.file_system_ip)
-    Cluster(cluster_name, env, cluster_nodes)
+function create_cluster(cluster::Cluster)
+    shared_fs = false
+    if cluster isa ManagerWorkersWithSharedFS || cluster isa PeersWorkersWithSharedFS
+        shared_fs = true
+    end
+
+    cluster.environment = create_environment(cluster.name, shared_fs)
+
+    cluster.cluster_nodes = create_instances(cluster)
+    cluster
 end
+
 
 function get_ips(cluster_handle::Cluster)
     ips = Dict()
@@ -86,6 +160,12 @@ function get_ips(cluster_handle::Cluster)
         ips[node]=Dict("public_ip" => public_ip, "private_ip" => private_ip)
     end
     ips
+end
+
+function get_ips_instance(instance_id::String)
+    public_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
+    private_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
+    Dict("public_ip" => public_ip, "private_ip" => private_ip)
 end
 
 function delete_cluster(cluster_handle::Cluster)
@@ -98,7 +178,9 @@ function delete_cluster(cluster_handle::Cluster)
             status = get_instance_status(instance[2])
         end
     end
-    delete_efs(cluster_handle.environment.file_system_id)
+    if cluster isa ManagerWorkersWithSharedFS || cluster isa PeersWorkersWithSharedFS
+        delete_efs(cluster_handle.environment.file_system_id)
+    end
     delete_security_group(cluster_handle.environment.security_group_id)
     delete_placement_group(cluster_handle.environment.placement_group)
 end
@@ -190,21 +272,30 @@ chmod 600 /home/ubuntu/.ssh/*
    [internal_key_name, user_data]
 end
 
-function create_params(instance_type, cluster_name, node_name, image_id, key_name, placement_group, security_group_id, subnet_id, user_data)
+function create_params(cluster::Cluster, user_data_base64)
+    instance_type = ""
+    node_name = ""
+    if cluster isa ManagerWorkers
+        instance_type = cluster.instance_type_headnode
+        node_name = "headnode"
+    elseif cluster isa PeersWorkers
+        instance_type = cluster.instance_type_peer
+        node_name = "peer"
+    end
     params = Dict(
         "InstanceType" => instance_type,
-        "ImageId" => image_id,
-        "KeyName" => key_name,
-        "Placement" => Dict("GroupName" => placement_group),
-        "SecurityGroupId" => [security_group_id],
-        "SubnetId" => subnet_id,
+        "ImageId" => cluster.image_id,
+        "KeyName" => cluster.key_name,
+        "Placement" => Dict("GroupName" => cluster.environment.placement_group),
+        "SecurityGroupId" => [cluster.environment.security_group_id],
+        "SubnetId" => cluster.environment.subnet_id,    
         "TagSpecification" => 
             Dict(
                 "ResourceType" => "instance",
-                "Tag" => [Dict("Key" => "cluster", "Value" => cluster_name),
+                "Tag" => [Dict("Key" => "cluster", "Value" => cluster.name),
                           Dict("Key" => "Name", "Value" => node_name) ]
             ),
-        "UserData" => user_data
+        "UserData" => user_data_base64,
     )
     params
 end
@@ -259,114 +350,74 @@ function set_hostfile(cluster_nodes, internal_key_name)
     end
 end
 
-#=
-Versão MasterWorker com sistema de arquivo compartilhado.
-Precisa usar no mínimo c6i.large.
-=#
 
-function create_instances(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
+#=
+Cria as instâncias. 
+=#
+function create_instances(cluster::Cluster)
     cluster_nodes = Dict()
 
     # Configurando a conexão SSH.
-    internal_key_name, user_data = set_up_ssh_connection(cluster_name)
-      
+    internal_key_name, user_data = set_up_ssh_connection(cluster.name)
+
     # Configuração do NFS
-    nfs_user_data = "apt-get -y install nfs-common
+    if cluster isa ManagerWorkersWithSharedFS || cluster isa PeersWorkersWithSharedFS
+        file_system_ip = cluster.environment.file_system_ip
+        nfs_user_data = "apt-get -y install nfs-common
 mkdir /home/ubuntu/shared/
 mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $file_system_ip:/ /home/ubuntu/shared/
 chown -R ubuntu:ubuntu /home/ubuntu/shared
-"
-     # Criando o headnode
-     params = create_params(instance_type_headnode, cluster_name, "headnode", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
-     instance_headnode = Ec2.run_instances(1,1,params)
-     cluster_nodes["headnode"] = instance_headnode["instancesSet"]["item"]["instanceId"]
- 
-     # Criando os worker nodes.
-     params = create_params(instance_type_worker, cluster_name, "worker", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
-     instances_workers = Ec2.run_instances(count,count,params)
-     for i in 1:count
-         instance = ""
-         if count > 1
-             instance = instances_workers["instancesSet"]["item"][i]
-         elseif count == 1
-             instance = instances_workers["instancesSet"]["item"]
-         end
-         instance_id = instance["instanceId"]
-         cluster_nodes["worker$i"] = instance_id
-     end
- 
-     set_hostfile(cluster_nodes, internal_key_name)
-    
-     remove_temp_files(internal_key_name)
-     cluster_nodes
-end
-
-#=
-Versão MasterWorker sem sistema de arquivos compartilhado.
-=#
-function create_instances(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count, placement_group, security_group_id, subnet_id)
-    # Dicionário com o nome e id das instâncias.
-    cluster_nodes = Dict()
-    
-    # Configurando a conexão SSH.
-    internal_key_name, user_data = set_up_ssh_connection(cluster_name)
+"    
+        user_data *= nfs_user_data
+    end
     user_data_base64 = base64encode(user_data)
 
-    # Criando o headnode
-    params = create_params(instance_type_headnode, cluster_name, "headnode", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
-    instance_headnode = Ec2.run_instances(1,1,params)
-    cluster_nodes["headnode"] = instance_headnode["instancesSet"]["item"]["instanceId"]
+    # Criando as instâncias
+    params = create_params(cluster, user_data_base64)
+    if cluster isa ManagerWorkers
+        # Criar o headnode
+        instance_headnode = Ec2.run_instances(1, 1, params)
+        cluster_nodes["headnode"] = instance_headnode["instancesSet"]["item"]["instanceId"]
 
-    # Criando os worker nodes.
-    params = create_params(instance_type_worker, cluster_name, "worker", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
-    instances_workers = Ec2.run_instances(count,count,params)
-    for i in 1:count
-        instance = ""
-        if count > 1
-            instance = instances_workers["instancesSet"]["item"][i]
-        elseif count == 1
-            instance = instances_workers["instancesSet"]["item"]
+        # Criar os worker nodes.
+        params["InstanceType"] = cluster.instance_type_worker
+        params["TagSpecification"]["Tag"][2]["Value"] = "worker"
+        count = cluster.count
+        instances_workers = Ec2.run_instances(count, count, params)
+        workers = count
+        for i in 1:count
+            instance = ""
+            if count > 1
+                instance = instances_workers["instancesSet"]["item"][i]
+            elseif count == 1
+                instance = instances_workers["instancesSet"]["item"]
+            end
+            instance_id = instance["instanceId"]
+            cluster_nodes["worker$i"] = instance_id
         end
-        instance_id = instance["instanceId"]
-        cluster_nodes["worker$i"] = instance_id
-    end
+    elseif cluster isa PeersWorkers
+        # Criar os Peers.
+        count = cluster.count
+        instances_peers = Ec2.run_instances(count, count, params)
+        for i in 1:count
+            instance = ""
+            if count > 1
+                instance = instances_peers["instancesSet"]["item"][i]
+            elseif count == 1
+                instance = instances_peers["instancesSet"]["item"]
+            end
+            instance_id = instance["instanceId"]
+            cluster_nodes["peer$i"] = instance_id
+        end
+    end   
 
     set_hostfile(cluster_nodes, internal_key_name)
-   
+
     remove_temp_files(internal_key_name)
+
     cluster_nodes
 end
 
-#=
-Versão Peers sem sistema de arquivos compartilhado.
-=#
-function create_instances(cluster_name, instance_type_peer, image_id, key_name, count, placement_group, security_group_id, subnet_id)
-    # Dicionário com o nome e id das instâncias.
-    cluster_nodes = Dict()
-    
-    # Configurando a conexão SSH.
-    internal_key_name, user_data = set_up_ssh_connection(cluster_name)
-    user_data_base64 = base64encode(user_data)
-
-    # Criando os Peers.
-    params = create_params(instance_type_peer, cluster_name, "peer", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
-    instances_peers = Ec2.run_instances(count,count,params)
-    for i in 1:count
-        instance = ""
-        if count > 1
-            instance = instances_peers["instancesSet"]["item"][i]
-        elseif count == 1
-            instance = instances_peers["instancesSet"]["item"]
-        end
-        instance_id = instance["instanceId"]
-        cluster_nodes["peer$i"] = instance_id
-    end
-
-    set_hostfile(cluster_nodes, internal_key_name)
-   
-    remove_temp_files(internal_key_name)
-    cluster_nodes
-end
 
 function delete_instances(cluster_nodes)
     for id in values(cluster_nodes)
