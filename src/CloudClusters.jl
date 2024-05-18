@@ -32,7 +32,7 @@ export cluster_create, @cluster,
 export ManagerWorkers, PeerWorkers
 
 # Feature types
-export PlatformAware, select_instances_by_features
+export PlatformAware, select_instances, @select
 
 
 end # end CloudCluster

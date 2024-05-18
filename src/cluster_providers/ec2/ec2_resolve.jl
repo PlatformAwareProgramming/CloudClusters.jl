@@ -79,7 +79,7 @@ for (instance_type, instance_info) in db
 
 end
 
-function select_instances_by_features(filter)
+function select_instances(filter...)
 
     result = Dict{String, Any}()
 
@@ -90,7 +90,6 @@ function select_instances_by_features(filter)
         end
 
         if select_flag
-           #@info instance_type => instance_feature
            result[instance_type] = instance_feature
         end
     end
