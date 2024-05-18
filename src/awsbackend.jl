@@ -41,15 +41,23 @@ using Sockets
 Estrutura para Armazenar as informações e função de criação do cluster
 =#
 
-struct Cluster
-    name::String
+
+
+struct Environment
+    subnet_id::String
     placement_group::String
     security_group_id::String
-    file_system_id::String
+    file_system_id::String  
+    file_system_ip::String
+end
+
+struct Cluster
+    name::String
+    environment::Environment
     cluster_nodes::Dict{String, String}
 end
 
-function create_cluster(cluster_name, instance_type, image_id, key_name, count)
+function create_environment(cluster_name)
     # Eu vou recuperar a primeira subrede e utilizá-la. Na prática não faz diferença, mas podemos depois criar uma função para escolher a subrede e VPC.
     subnet_id = Ec2.describe_subnets()["subnetSet"]["item"][1]["subnetId"]
     println("Subnet ID: $subnet_id")
@@ -61,13 +69,18 @@ function create_cluster(cluster_name, instance_type, image_id, key_name, count)
     println("File System ID: $file_system_id")
     file_system_ip = get_mount_target_ip(file_system_id)
     println("File System IP: $file_system_ip")
-    cluster_nodes = create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
-    Cluster(cluster_name, placement_group, security_group_id, file_system_id, cluster_nodes)
+    Environment(subnet_id, placement_group, security_group_id, file_system_id, file_system_ip)
 end
 
-function get_ips(c)
+function create_cluster(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count)
+    env = create_environment(cluster_name)
+    cluster_nodes = create_instances(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count, env.placement_group, env.security_group_id, env.subnet_id, env.file_system_ip)
+    Cluster(cluster_name, env, cluster_nodes)
+end
+
+function get_ips(cluster_handle::Cluster)
     ips = Dict()
-    for (node, id) in c.cluster_nodes
+    for (node, id) in cluster_handle.cluster_nodes
         public_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
         private_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
         ips[node]=Dict("public_ip" => public_ip, "private_ip" => private_ip)
@@ -85,9 +98,9 @@ function delete_cluster(cluster_handle::Cluster)
             status = get_instance_status(instance[2])
         end
     end
-    delete_efs(cluster_handle.file_system_id)
-    delete_security_group(cluster_handle.security_group_id)
-    delete_placement_group(cluster_handle.placement_group)
+    delete_efs(cluster_handle.environment.file_system_id)
+    delete_security_group(cluster_handle.environment.security_group_id)
+    delete_placement_group(cluster_handle.environment.placement_group)
 end
 
 #=
@@ -116,6 +129,7 @@ end
 Grupo de Segurança 
 =#
 function create_security_group(name, description)
+    # Criamos o grupo
     params = Dict(
         "TagSpecification" => 
             Dict(
@@ -125,6 +139,8 @@ function create_security_group(name, description)
             )
     )
     id = Ec2.create_security_group(name, description, params)["groupId"]
+
+    # Liberamos o SSH.
     params = Dict(
         "GroupId" => id, 
         "CidrIp" => "0.0.0.0/0",
@@ -132,6 +148,8 @@ function create_security_group(name, description)
         "FromPort" => 22,
         "ToPort" => 22)
     Ec2.authorize_security_group_ingress(params)
+
+    # Liberamos o tráfego interno do grupo.
     sg_name =  Ec2.describe_security_groups(Dict("GroupId" => id))["securityGroupInfo"]["item"]["groupName"]
     params = Dict(
         "GroupId" => id, 
@@ -145,19 +163,34 @@ function delete_security_group(id)
 end
 
 #=
-Versão com sistema de arquivo compartilhado.
-Precisa usar no mínimo c6i.large.
-=#
+Criação de Instâncias
+=# 
 
-function create_instances(cluster_name, instance_type, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
-    cluster_nodes = Dict()
-    user_data = "#!/bin/bash
-apt-get -y install nfs-common
-mkdir /home/ubuntu/shared/
-mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $file_system_ip:/ /home/ubuntu/shared/
-chown -R ubuntu:ubuntu /home/ubuntu/shared
+# Funções auxiliares.
+function set_up_ssh_connection(cluster_name)
+   # Criar chave interna pública e privada do SSH.
+   chars = ['a':'z'; 'A':'Z'; '0':'9']
+   random_suffix = join(chars[Random.rand(1:length(chars), 5)])
+   internal_key_name = cluster_name * random_suffix
+   run(`ssh-keygen -f /tmp/$internal_key_name -N ""`)
+   private_key = base64encode(read("/tmp/$internal_key_name", String))
+   public_key = base64encode(read("/tmp/$internal_key_name.pub", String))
+  
+   # Define o script que irá instalar a chave pública e privada no headnode e workers.
+   user_data = "#!/bin/bash
+echo $private_key | base64 -d > /home/ubuntu/.ssh/$cluster_name
+echo $public_key | base64 -d > /home/ubuntu/.ssh/$cluster_name.pub
+echo 'Host *
+   IdentityFile /home/ubuntu/.ssh/$cluster_name
+   StrictHostKeyChecking no' > /home/ubuntu/.ssh/config
+cat /home/ubuntu/.ssh/$cluster_name.pub >> /home/ubuntu/.ssh/authorized_keys
+chown -R ubuntu.ubuntu /home/ubuntu/.ssh
+chmod 600 /home/ubuntu/.ssh/*
 "
-    user_data_base64 = base64encode(user_data)
+   [internal_key_name, user_data]
+end
+
+function create_params(instance_type, cluster_name, node_name, image_id, key_name, placement_group, security_group_id, subnet_id, user_data)
     params = Dict(
         "InstanceType" => instance_type,
         "ImageId" => image_id,
@@ -169,96 +202,19 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
             Dict(
                 "ResourceType" => "instance",
                 "Tag" => [Dict("Key" => "cluster", "Value" => cluster_name),
-                          Dict("Key" => "Name", "Value" => "headnode") ]
+                          Dict("Key" => "Name", "Value" => node_name) ]
             ),
-        "UserData" => user_data_base64,
+        "UserData" => user_data
     )
-    instances = Ec2.run_instances(1,1,params)
-    cluster_nodes["headnode"] = instances["instancesSet"]["item"]["instanceId"]
-
-    worker_count = count - 1
-    if worker_count > 1
-        params["TagSpecification"]["Tag"][2]["Value"] = "worker"
-        instances = Ec2.run_instances(worker_count,worker_count,params)
-        for i in 1:worker_count
-            instance = instances["instancesSet"]["item"][i]
-            instance_id = instance["instanceId"]
-            cluster_nodes["worker$i"] = instance_id
-        end
-    elseif worker_count == 1
-        params["TagSpecification"]["Tag"][2]["Value"] = "worker"
-        instances = Ec2.run_instances(worker_count,worker_count,params)
-        instance = instances["instancesSet"]["item"]
-        instance_id = instance["instanceId"]
-        cluster_nodes["worker1"] = instance_id
-    else
-        return cluster_nodes
-    end
-    cluster_nodes
+    params
 end
-
-#=
-Versão sem sistema de arquivos compartilhado.
-=#
-function create_instances(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count, security_group_id, subnet_id)
-    # Dicionário com o nome e id das instâncias.
-    cluster_nodes = Dict()
-    
-    # Criar chave interna pública e privada do SSH.
-    chars = ['a':'z'; 'A':'Z'; '0':'9']
-    random_suffix = join(chars[Random.rand(1:length(chars), 5)])
-    internal_key_name = cluster_name * random_suffix
-    run(`ssh-keygen -f /tmp/$internal_key_name -N ""`)
-    private_key = base64encode(read("/tmp/$internal_key_name", String))
-    public_key = base64encode(read("/tmp/$internal_key_name.pub", String))
-   
-    # Define o script que irá instalar a chave pública e privada no headnode e workers.
-    user_data = "#!/bin/bash
-echo $private_key | base64 -d > /home/ubuntu/.ssh/$cluster_name
-echo $public_key | base64 -d > /home/ubuntu/.ssh/$cluster_name.pub
-echo 'Host *
-    IdentityFile /home/ubuntu/.ssh/$cluster_name
-    StrictHostKeyChecking no' > /home/ubuntu/.ssh/config
-cat /home/ubuntu/.ssh/$cluster_name.pub >> /home/ubuntu/.ssh/authorized_keys
-chown -R ubuntu.ubuntu /home/ubuntu/.ssh
-chmod 600 /home/ubuntu/.ssh/*
-"
-    user_data_base64 = base64encode(user_data)
-    
-    # Criando o headnode
-    params = Dict(
-        "InstanceType" => instance_type_headnode,
-        "ImageId" => image_id,
-        "KeyName" => key_name,
-        "SecurityGroupId" => [security_group_id],
-        "SubnetId" => subnet_id,
-        "TagSpecification" => 
-            Dict(
-                "ResourceType" => "instance",
-                "Tag" => [Dict("Key" => "cluster", "Value" => cluster_name),
-                          Dict("Key" => "Name", "Value" => "headnode") ]
-            ),
-        "UserData" => user_data_base64,
-    )
-
-    instance_headnode = Ec2.run_instances(1,1,params)
-    cluster_nodes["headnode"] = instance_headnode["instancesSet"]["item"]["instanceId"]
-
-    # Criando os worker nodes.
-    params["TagSpecification"]["Tag"][2]["Value"] = "worker"
-    params["InstanceType"] = instance_type_worker;
-    instances_workers = Ec2.run_instances(count,count,params)
-    for i in 1:count
-        instance = ""
-        if count > 1
-            instance = instances_workers["instancesSet"]["item"][i]
-        elseif count == 1
-            instance = instances_workers["instancesSet"]["item"]
-        end
-        instance_id = instance["instanceId"]
-        cluster_nodes["worker$i"] = instance_id
-    end
-
+ 
+function remove_temp_files(internal_key_name)
+    run(`rm /tmp/$internal_key_name`)
+    run(`rm /tmp/$internal_key_name.pub`)
+end
+ 
+function set_hostfile(cluster_nodes, internal_key_name)
     # Esperando todo mundo estar pronto.
     for instance in keys(cluster_nodes)
         while get_instance_status(cluster_nodes[instance]) != "running"
@@ -271,7 +227,7 @@ chmod 600 /home/ubuntu/.ssh/*
     for instance in keys(cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
         connection_ok = false
-        while ! connection_ok
+        while !connection_ok
             try
                 connect(public_ip, 22)
                 connection_ok = true
@@ -301,9 +257,114 @@ chmod 600 /home/ubuntu/.ssh/*
         run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown root:root /etc/hosts"`)
         run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "rm hosts.tmp"`)
     end
+end
 
-    rm("/tmp/$internal_key_name")
-    rm("/tmp/$internal_key_name.pub")
+#=
+Versão MasterWorker com sistema de arquivo compartilhado.
+Precisa usar no mínimo c6i.large.
+=#
+
+function create_instances(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count, placement_group, security_group_id, subnet_id, file_system_ip)
+    cluster_nodes = Dict()
+
+    # Configurando a conexão SSH.
+    internal_key_name, user_data = set_up_ssh_connection(cluster_name)
+      
+    # Configuração do NFS
+    nfs_user_data = "apt-get -y install nfs-common
+mkdir /home/ubuntu/shared/
+mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $file_system_ip:/ /home/ubuntu/shared/
+chown -R ubuntu:ubuntu /home/ubuntu/shared
+"
+     # Criando o headnode
+     params = create_params(instance_type_headnode, cluster_name, "headnode", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
+     instance_headnode = Ec2.run_instances(1,1,params)
+     cluster_nodes["headnode"] = instance_headnode["instancesSet"]["item"]["instanceId"]
+ 
+     # Criando os worker nodes.
+     params = create_params(instance_type_worker, cluster_name, "worker", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
+     instances_workers = Ec2.run_instances(count,count,params)
+     for i in 1:count
+         instance = ""
+         if count > 1
+             instance = instances_workers["instancesSet"]["item"][i]
+         elseif count == 1
+             instance = instances_workers["instancesSet"]["item"]
+         end
+         instance_id = instance["instanceId"]
+         cluster_nodes["worker$i"] = instance_id
+     end
+ 
+     set_hostfile(cluster_nodes, internal_key_name)
+    
+     remove_temp_files(internal_key_name)
+     cluster_nodes
+end
+
+#=
+Versão MasterWorker sem sistema de arquivos compartilhado.
+=#
+function create_instances(cluster_name, instance_type_headnode, instance_type_worker, image_id, key_name, count, placement_group, security_group_id, subnet_id)
+    # Dicionário com o nome e id das instâncias.
+    cluster_nodes = Dict()
+    
+    # Configurando a conexão SSH.
+    internal_key_name, user_data = set_up_ssh_connection(cluster_name)
+    user_data_base64 = base64encode(user_data)
+
+    # Criando o headnode
+    params = create_params(instance_type_headnode, cluster_name, "headnode", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
+    instance_headnode = Ec2.run_instances(1,1,params)
+    cluster_nodes["headnode"] = instance_headnode["instancesSet"]["item"]["instanceId"]
+
+    # Criando os worker nodes.
+    params = create_params(instance_type_worker, cluster_name, "worker", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
+    instances_workers = Ec2.run_instances(count,count,params)
+    for i in 1:count
+        instance = ""
+        if count > 1
+            instance = instances_workers["instancesSet"]["item"][i]
+        elseif count == 1
+            instance = instances_workers["instancesSet"]["item"]
+        end
+        instance_id = instance["instanceId"]
+        cluster_nodes["worker$i"] = instance_id
+    end
+
+    set_hostfile(cluster_nodes, internal_key_name)
+   
+    remove_temp_files(internal_key_name)
+    cluster_nodes
+end
+
+#=
+Versão Peers sem sistema de arquivos compartilhado.
+=#
+function create_instances(cluster_name, instance_type_peer, image_id, key_name, count, placement_group, security_group_id, subnet_id)
+    # Dicionário com o nome e id das instâncias.
+    cluster_nodes = Dict()
+    
+    # Configurando a conexão SSH.
+    internal_key_name, user_data = set_up_ssh_connection(cluster_name)
+    user_data_base64 = base64encode(user_data)
+
+    # Criando os Peers.
+    params = create_params(instance_type_peer, cluster_name, "peer", image_id, key_name, placement_group, security_group_id, subnet_id, user_data_base64)
+    instances_peers = Ec2.run_instances(count,count,params)
+    for i in 1:count
+        instance = ""
+        if count > 1
+            instance = instances_peers["instancesSet"]["item"][i]
+        elseif count == 1
+            instance = instances_peers["instancesSet"]["item"]
+        end
+        instance_id = instance["instanceId"]
+        cluster_nodes["peer$i"] = instance_id
+    end
+
+    set_hostfile(cluster_nodes, internal_key_name)
+   
+    remove_temp_files(internal_key_name)
     cluster_nodes
 end
 
