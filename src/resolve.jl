@@ -63,5 +63,24 @@ end
 #        return node_machinetype
 #end
 
+instance_type_table = Dict{String, Any}()
 
+function select_instances(filter...)
+
+    result = Dict{String, Any}()
+
+    for (instance_type, instance_feature) in instance_type_table
+        select_flag = true
+        for cond in filter
+            select_flag = select_flag && isa(cond.second, instance_feature[cond.first])
+        end
+
+        if select_flag
+           result[instance_type] = instance_feature
+        end
+    end
+
+    return result
+
+end
 

@@ -1,7 +1,6 @@
 
 
 
-ec2_instance_type_table = Dict{String, Any}()
 
 db = PlatformAware.readCloudInstancesDB(AmazonEC2)
 
@@ -72,29 +71,12 @@ for (instance_type, instance_info) in db
 
      end
 
-    ec2_instance_type_table[instance_type] = instance_feature_table
+    instance_type_table[instance_type] = instance_feature_table
 
     resolve_decl = Expr(:function, Expr(:call, parameters...), Expr(:block, Expr(:return, instance_type)))
     eval(resolve_decl)
 
 end
 
-function select_instances(filter...)
 
-    result = Dict{String, Any}()
-
-    for (instance_type, instance_feature) in ec2_instance_type_table
-        select_flag = true
-        for cond in filter
-            select_flag = select_flag && isa(cond.second, instance_feature[cond.first])
-        end
-
-        if select_flag
-           result[instance_type] = instance_feature
-        end
-    end
-
-    return result
-
-end
 

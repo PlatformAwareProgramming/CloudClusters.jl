@@ -5,8 +5,6 @@
 
 macro cluster(features...)
 
-    @info features
-
     common_features = Vector()
     manager_features = Vector()
     worker_features = Vector()
