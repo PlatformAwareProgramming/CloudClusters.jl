@@ -45,9 +45,12 @@ macro cluster(features...)
     esc(cluster_create_call) 
 end
 
-macro resolve(contract_id)
-    resolve_call = Expr(:call, :cluster_resolve, contract_id)
-    esc(resolve_call)
+macro resolve(contract_ids...)
+    resolve_calls = Vector()
+    for contract_id in contract_ids
+        push!(resolve_calls, Expr(:call, :cluster_resolve, contract_id))
+    end
+    esc(Expr(:vect, resolve_calls...))
 end
 
 macro deploy(contract_id)
@@ -55,19 +58,28 @@ macro deploy(contract_id)
     esc(deploy_call)
 end
 
-macro interrupt(cluster_id)
-    interrupt_call = Expr(:call, :cluster_interrupt, cluster_id)
-    esc(interrupt_call)
+macro interrupt(cluster_ids...)
+    interrupt_calls = Vector()
+    for cluster_id in cluster_ids
+        push!(interrupt_calls, Expr(:call, :cluster_interrupt, cluster_id))
+    end
+    esc(Expr(:block, interrupt_calls...))
 end
 
-macro resume(cluster_id)
-    resume_call = Expr(:call, :cluster_resume, cluster_id)
-    esc(resume_call)
+macro resume(cluster_ids...)
+    resume_calls = Vector()
+    for cluster_id in cluster_ids
+        push!(resume_calls, Expr(:call, :cluster_resume, cluster_id))
+    end
+    esc(Expr(:block, resume_calls...))
 end
 
-macro terminate(cluster_id)
-    terminate_call = Expr(:call, :cluster_terminate, cluster_id)
-    esc(terminate_call)
+macro terminate(cluster_ids...)
+    terminate_calls = Vector()
+    for cluster_id in cluster_ids
+        push!(terminate_calls, Expr(:call, :cluster_terminate, cluster_id))
+    end
+    esc(Expr(:block, terminate_calls...))
 end
 
 macro select(features...)
