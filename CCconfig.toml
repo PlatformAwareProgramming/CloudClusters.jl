@@ -1,0 +1,17 @@
+
+[defaults]
+
+imageid = "ami-0745f6d6a24395345"
+#placement_group = "automatic"
+#"default_placement_group"
+security_group_id = "sg-039de945285a31f89"
+subnet_id = "subnet-3fca5558"
+user = "ubuntu"
+keyname = "hpc-shelf-credential"
+sshflags = "-i /home/heron/hpc-shelf-credential.pem" 
+exename = "/home/ubuntu/.juliaup/bin/julia"
+directory = "/home/ubuntu/heron/NPBApps.jl"
+exeflags = ""
+tunneled = true
+threadlevel = "multiple"
+mpiflags = "--map-by node --hostfile /home/ubuntu/hostfile"
