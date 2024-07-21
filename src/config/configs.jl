@@ -11,6 +11,7 @@ function readCCConfig()
          try
             io = open(filename)
             read(io,String)
+            close(io)
          catch
             default_location = "/etc/CCconfig.toml"
             try
@@ -28,11 +29,7 @@ function readCCConfig()
      #           try_download(dpf_url, dpf_fname)
 
      #           read(dpf_fname,String)
-            finally
-                close(io)
             end
-         finally
-            close(io)
          end
     
          if isnothing(ccconfig_toml)
