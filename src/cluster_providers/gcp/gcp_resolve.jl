@@ -61,7 +61,6 @@ for (instance_type, instance_info) in db
     push!(parameters, :resolve)
     for name in instance_features_order
         par = instance_info[string(name)]
-
         ft = PlatformAware.getFeature(name, par, instance_features, instance_features_type)
         
         push!(parameters, :($name::Type{>:$ft}))

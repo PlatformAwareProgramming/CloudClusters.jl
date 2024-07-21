@@ -17,7 +17,8 @@ function cluster_resolve(_::Type{<:ManagerWorkers}, cluster_features, contract_h
 
     manager_features[:node_provider] = worker_features[:node_provider] = cluster_features[:node_provider]
 
-    @info manager_features
+    @info "MANAGER: $manager_features"
+    @info "WORKER: $manager_features"
 
     instance_type_master = call_resolve(manager_features)
     instance_type_worker = call_resolve(worker_features)
@@ -32,7 +33,7 @@ function cluster_resolve(_::Type{<:PeerWorkers}, cluster_features, contract_hand
 
     instance_type = call_resolve(cluster_features)
 
-    cluster_contract_resolved[contract_handle] = :instance_type
+    cluster_contract_resolved[contract_handle] = instance_type
 
     :instance_type => instance_type
 end

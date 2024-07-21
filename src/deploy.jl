@@ -9,6 +9,7 @@ struct ClusterHandle end
 # indexed by wid
 cluster_deploy_info = Dict()
  
+default_directory() = defaults_dict[:directory]
 default_exename() = defaults_dict[:exename]
 default_exeflags() = defaults_dict[:exeflags]
 default_tunnel() = defaults_dict[:tunneled]                    # read from a CloudClousters.toml config file
@@ -16,6 +17,7 @@ default_tunnel() = defaults_dict[:tunneled]                    # read from a Clo
 #default_connect_ident() = nothing          # read from a CloudClousters.toml config file
 default_threadlevel() = defaults_dict[:threadlevel]
 default_mpiflags() = defaults_dict[:mpiflags]
+default_sshflags() = defaults_dict[:sshflags]
 
 function cluster_deploy(contract_handle)
 
@@ -23,11 +25,12 @@ function cluster_deploy(contract_handle)
 
     cluster_type, cluster_features = cluster_contract[contract_handle]
     instance_type = cluster_contract_resolved[contract_handle]
+    @info "INSTANCE TYPE: $instance_type"
     cluster_provider = cluster_features[:node_provider]
 
     pids = cluster_deploy(cluster_provider, cluster_type, cluster_handle, cluster_features, instance_type)
 
-    cluster_deploy_info[cluster_handle] = pids
+    cluster_deploy_info[cluster_handle] = Dict(:pids => pids, :cluster_type => cluster_type, :instance_type => instance_type, :cluster_features => cluster_features)
 
     return cluster_handle => pids
 end
@@ -36,67 +39,107 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:ManagerWorkers}, 
 
     instance_type_master, instance_type_worker = instance_type
 
-    #ip_master, nw, user_id, keyname = deploy_cluster(cluster_provider, cluster_type, CreateMode, cluster_handle, cluster_features, instance_type_master, instance_type_worker)
-    ip_master = Dict()
-    ip_master[:public_ip] = "127.0.0.1"
-    ip_master[:private_ip] = "127.0.0.1"
-    nw = 4
-    user_id = "heron"
-    keyname = "/home/heron/hpc-shelf-credential.pem"
-
+    ip_master, user_id, nw = deploy_cluster(cluster_provider, cluster_type, CreateMode, cluster_handle, cluster_features, instance_type_master, instance_type_worker)
+    
     manager_features = Dict(get(cluster_features, :manager_features, cluster_features))
     worker_features = Dict(get(cluster_features, :worker_features, cluster_features))
 
-    exeflags_master = get(manager_features, :exeflags, default_exeflags())
-    exeflags_worker = get(worker_features, :exeflags, default_exeflags())
+    exeflags_master = get(manager_features, :exeflags, default_exeflags()) |> x -> Cmd(convert(Vector{String}, split(x)))
+    exeflags_worker = get(worker_features, :exeflags, default_exeflags()) |> x -> Cmd(convert(Vector{String}, split(x)))
 
-    exename_master = get(manager_features, :exename, default_exename())
-    exename_worker = get(worker_features, :exename, default_exename())
+    exename_master = get(manager_features, :exename, default_exename()) |> x -> Cmd(convert(Vector{String}, split(x)))
+    exename_worker = get(worker_features, :exename, default_exename()) |> x -> Cmd(convert(Vector{String}, split(x)))
 
+    directory_master = get(cluster_features, :directory, default_directory()) #|> x -> Cmd(convert(Vector{String}, split(x)))
+    directory_worker = get(cluster_features, :directory, default_directory()) #|> x -> Cmd(convert(Vector{String}, split(x)))
+
+    # only master
     tunnel = get(cluster_features, :tunnel, default_tunnel()) 
     #ident = get(cluster_features, :ident, default_ident()) 
     #connect_idents = get(cluster_features, :security_group_id, default_connect_ident()) 
+    sshflags = get(cluster_features, :sshflags, default_sshflags()) |> x -> Cmd(convert(Vector{String}, split(x)))
+
+    # only worker
     threadlevel = get(cluster_features, :threadlevel, default_threadlevel()) 
-    mpiflags = get(cluster_features, :mpiflags, default_mpiflags()) 
-    
-    master_id = addprocs(["$user_id@$(ip_master[:public_ip])"]; sshflags="-i $keyname", exename=exename_master, exeflags=exeflags_master, tunnel=tunnel #=, ident=ident, connect_idents=connect_idents=#)
-    @everywhere [master_id[1]] @eval using CloudClusters
-    @fetchfrom master_id[1] addprocs(MPIWorkerManager(nw); master_tcp_interface=ip_master[:private_ip], threadlevel=threadlevel, mpiflags=mpiflags, exename = exename_worker, exeflags=exeflags_worker)
+    mpiflags = get(cluster_features, :mpiflags, default_mpiflags()) |> x -> Cmd(convert(Vector{String}, split(x)))
+
+    @info "count=$nw"
+    @info "user_id=$user_id"
+    @info "sshflags=$sshflags"
+    @info "exename_master=$exename_master"
+    @info "exename_worker=$exename_worker"
+    @info "exeflags_master=$exeflags_master"
+    @info "exeflags_worker=$exeflags_worker"
+    @info "tunnel=$tunnel"
+    @info "directory_master=$directory_master"
+    @info "directory_worker=$directory_worker"
+    @info "tunnel=$tunnel"
+    @info "===> $user_id@$(ip_master[:public_ip])"
+
+    master_id = nothing
+    ntries = 1
+    successfull = false
+    while !successfull
+        try
+            master_id = addprocs(["$user_id@$(ip_master[:public_ip])"], exeflags=exeflags_master, dir=directory_master, sshflags=sshflags, exename=exename_master, tunnel=tunnel #=, ident=ident, connect_idents=connect_idents=#)
+            successfull = true
+        @info "master deployed ..."
+        catch _ 
+            @info "error - master deploy -- try $ntries"
+        end
+        ntries += 1
+    end
+
+    @everywhere master_id @eval using MPIClusterManagers
+
+    @info "using MPIClusterManagers ..."
+
+    @fetchfrom master_id[1] addprocs(MPIWorkerManager(nw); master_tcp_interface=ip_master[:private_ip], dir=directory_worker, threadlevel=Symbol(threadlevel), mpiflags=mpiflags, exename=exename_worker, exeflags=exeflags_worker)
+    @info "workers deployed ..."
 
     return master_id[1]
+
 end
 
 function cluster_deploy(cluster_provider, cluster_type::Type{<:PeerWorkers}, cluster_handle, cluster_features, instance_type)
 
     cluster_provider = cluster_features[:node_provider]
 
-    #ips, user_id, keyname = deploy_cluster(cluster_provider, cluster_type, CreateMode, cluster_handle, cluster_features, instance_type)
-    ips = [Dict(:public_ip => "127.0.0.1", :private_ip => "127.0.0.1"), 
-           Dict(:public_ip => "127.0.0.1", :private_ip => "127.0.0.1"), 
-           Dict(:public_ip => "127.0.0.1", :private_ip => "127.0.0.1"), 
-           Dict(:public_ip => "127.0.0.1", :private_ip => "127.0.0.1")]
-    user_id = "heron"
-    keyname = "/home/heron/hpc-shelf-credential.pem"
-
-    exeflags = get(cluster_features, :exeflags, default_exeflags()) 
-    exename = get(cluster_features, :exename, default_exename())
-    tunnel = get(cluster_features, :tunnel, default_tunnel())
+    ips, user_id = deploy_cluster(cluster_provider, cluster_type, CreateMode, cluster_handle, cluster_features, instance_type)
+    
+    sshflags = get(cluster_features, :sshflags, default_sshflags()) |> x -> Cmd(convert(Vector{String}, split(x)))
+    exeflags = get(cluster_features, :exeflags, default_exeflags()) |> x -> Cmd(convert(Vector{String}, split(x)))
+    exename = get(cluster_features, :exename, default_exename()) |> x -> Cmd(convert(Vector{String}, split(x)))
+    directory = get(cluster_features, :directory, default_directory()) #|> x -> Cmd(convert(Vector{String}, split(x)))
+    tunnel = get(cluster_features, :tunnel, default_tunnel()) 
     #ident = get(cluster_features, :ident, default_ident())
     #connect_idents = get(cluster_features, :security_group_id, default_connect_ident()) 
 
-    peer_ids = addprocs(["$user_id@$(ip[:public_ip])" for ip in ips], sshflags="-i $keyname", exename=exename, exeflags=exeflags, tunnel=tunnel#=, ident=ident, connect_idents=connect_idents=#)
+    @info "sshflags=$sshflags"
+    @info "exename=$exename"
+    @info "exeflags=$exeflags"
+    @info "tunnel=$tunnel"
+    @info "directory=$directory"
+
+    sleep(5)
+    
+    peer_ids = addprocs(["$user_id@$(ip[:public_ip])" for ip in values(ips)], exeflags=`$exeflags`, dir=directory, sshflags=sshflags, exename=exename, tunnel=tunnel#=, ident=ident, connect_idents=connect_idents=#)
 
     return peer_ids
+
 end
 
-function cluster_interrupt(wid)
-    interrupt_cluster(cluster_deploy_info[wid][:cluster_provider], cluster_deploy_info[wid])
+function cluster_interrupt(cluster_handle)
+    interrupt_cluster(cluster_deploy_info[cluster_handle][:cluster_features][:cluster_provider], cluster_handle)
 end
 
-function cluster_resume(wid)
-    resume_cluster(cluster_deploy_info[wid][:cluster_provider], cluster_deploy_info[wid])
+function cluster_resume(cluster_handle)
+    resume_cluster(cluster_deploy_info[cluster_handle][:cluster_features][:cluster_provider], cluster_handle)
 end
 
-function cluster_terminate(wid)
-    terminate_cluster(cluster_deploy_info[wid][:cluster_provider], cluster_deploy_info[wid])
+function cluster_terminate(cluster_handle)
+    for pid in cluster_deploy_info[cluster_handle][:pids]
+        rmprocs(pid)
+    end
+    terminate_cluster(cluster_deploy_info[cluster_handle][:cluster_features][:cluster_provider], cluster_handle)
 end

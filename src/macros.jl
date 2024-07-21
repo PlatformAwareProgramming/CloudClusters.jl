@@ -37,8 +37,8 @@ macro cluster(features...)
         end
     end
 
-    push!(common_features, Expr(:call, :(=>), :(:manager_features), Expr(:vect, manager_features...)))
-    push!(common_features, Expr(:call, :(=>), :(:worker_features), Expr(:vect, worker_features...)))
+    push!(common_features, Expr(:call, :(=>), :(:manager_features), Expr(:call, :Dict, manager_features...)))
+    push!(common_features, Expr(:call, :(=>), :(:worker_features), Expr(:call, :Dict, worker_features...)))
     
     cluster_create_call = Expr(:call, :cluster_create, common_features...)
 

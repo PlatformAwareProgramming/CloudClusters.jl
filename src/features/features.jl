@@ -1,5 +1,5 @@
-abstract type ClusterProvider end
-abstract type EC2Cluster <: ClusterProvider end
+#abstract type ClusterProvider end
+#abstract type EC2Cluster <: ClusterProvider end
 
 instance_features_order = [:node_provider,
                            :node_machinetype,

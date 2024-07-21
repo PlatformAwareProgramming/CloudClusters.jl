@@ -50,9 +50,22 @@ function loadDefaults(ccconfig_dict)
     defaults_dict[:keyname] = ccconfig_dict["defaults"]["keyname"]
     defaults_dict[:exename] = ccconfig_dict["defaults"]["exename"]
     defaults_dict[:exeflags] = ccconfig_dict["defaults"]["exeflags"]
+    defaults_dict[:directory] = ccconfig_dict["defaults"]["directory"]
     defaults_dict[:tunneled] = ccconfig_dict["defaults"]["tunneled"]
     defaults_dict[:threadlevel] = Symbol(ccconfig_dict["defaults"]["threadlevel"])
     defaults_dict[:mpiflags] = ccconfig_dict["defaults"]["mpiflags"]
+    defaults_dict[:sshflags] = ccconfig_dict["defaults"]["sshflags"]
+    
+    if haskey(ccconfig_dict["defaults"],"subnet_id")
+        defaults_dict[:subnet_id] = ccconfig_dict["defaults"]["subnet_id"]
+    end
+    
+    if haskey(ccconfig_dict["defaults"],"security_group_id")
+        defaults_dict[:security_group_id] = ccconfig_dict["defaults"]["security_group_id"]
+    end
+    if haskey(ccconfig_dict["defaults"],"placement_group")
+        defaults_dict[:placement_group] = ccconfig_dict["defaults"]["placement_group"] 
+    end
 
     @info defaults_dict
 end
