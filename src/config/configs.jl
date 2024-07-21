@@ -10,8 +10,9 @@ function readCCConfig()
     ccconfig_toml =   
          try
             io = open(filename)
-            read(io,String)
+            contents = read(io,String)
             close(io)
+            contents
          catch
             default_location = "/etc/CCconfig.toml"
             try
@@ -32,12 +33,13 @@ function readCCConfig()
             end
          end
     
-         if isnothing(ccconfig_toml)
-            @error "The configuration file (CCconfig.toml) was not found."
-            return nothing
-         end
+    @info "=====> $ccconfig_toml"
+    if isnothing(ccconfig_toml)
+        @error "The configuration file (CCconfig.toml) was not found."
+        return nothing
+    end
 
-         TOML.parse(ccconfig_toml)    
+    TOML.parse(ccconfig_toml)    
 end
 
 
