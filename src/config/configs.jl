@@ -28,17 +28,30 @@ function readCCConfig()
      #           try_download(dpf_url, dpf_fname)
 
      #           read(dpf_fname,String)
+            finally
+                close(io)
             end
+         finally
+            close(io)
          end
     
-        TOML.parse(ccconfig_toml)    
+         if isnothing(ccconfig_toml)
+            @error "The configuration file (CCconfig.toml) was not found."
+            return nothing
+         end
+
+         TOML.parse(ccconfig_toml)    
 end
 
 
 
 function load!()
     ccconfig_dict = readCCConfig() 
-    loadDefaults(ccconfig_dict)
+    if !isnothing(ccconfig_dict)
+       loadDefaults(ccconfig_dict)
+    else
+       @error "Default configuration is empty"
+    end
 end
 
 defaults_dict = Dict()

@@ -67,13 +67,9 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:ManagerWorkers}, 
     @info "user_id=$user_id"
     @info "sshflags=$sshflags"
     @info "exename_master=$exename_master"
-    @info "exename_worker=$exename_worker"
     @info "exeflags_master=$exeflags_master"
-    @info "exeflags_worker=$exeflags_worker"
     @info "tunnel=$tunnel"
     @info "directory_master=$directory_master"
-    @info "directory_worker=$directory_worker"
-    @info "tunnel=$tunnel"
     @info "===> $user_id@$(ip_master[:public_ip])"
 
     master_id = nothing
@@ -83,7 +79,7 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:ManagerWorkers}, 
         try
             master_id = addprocs(["$user_id@$(ip_master[:public_ip])"], exeflags=exeflags_master, dir=directory_master, sshflags=sshflags, exename=exename_master, tunnel=tunnel #=, ident=ident, connect_idents=connect_idents=#)
             successfull = true
-        @info "master deployed ..."
+            @info "master deployed ..."
         catch _ 
             @info "error - master deploy -- try $ntries"
         end
@@ -91,8 +87,15 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:ManagerWorkers}, 
     end
 
     @everywhere master_id @eval using MPIClusterManagers
+    @everywhere master_id @eval using CloudClusters
 
-    @info "using MPIClusterManagers ..."
+    @info "master_tcp_interface=$(ip_master[:private_ip])"
+    @info "exename_worker=$exename_worker"
+    @info "exeflags_worker=$exeflags_worker"
+    @info "dir=$directory_worker"
+    @info "threadlevel=$(Symbol(threadlevel))"
+    @info "mpiflags=$mpiflags"
+    @info "tunnel=$tunnel"
 
     @fetchfrom master_id[1] addprocs(MPIWorkerManager(nw); master_tcp_interface=ip_master[:private_ip], dir=directory_worker, threadlevel=Symbol(threadlevel), mpiflags=mpiflags, exename=exename_worker, exeflags=exeflags_worker)
     @info "workers deployed ..."
