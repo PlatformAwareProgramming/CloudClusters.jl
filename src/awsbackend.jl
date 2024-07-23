@@ -74,7 +74,9 @@ mutable struct ManagerWorkersCluster <: Cluster
     image_id_worker::String
     subnet_id::Union{String, Nothing}
     placement_group::Union{String, Nothing}
+    auto_pg::Bool
     security_group_id::Union{String, Nothing}
+    auto_sg::Bool
     environment::Union{SharedFSInfo, Nothing}
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
     shared_fs::Bool
@@ -89,7 +91,9 @@ mutable struct PeerWorkersCluster <: Cluster
     image_id::String
     subnet_id::Union{String, Nothing}
     placement_group::Union{String, Nothing}
+    auto_pg::Bool
     security_group_id::Union{String,Nothing}
+    auto_sg::Bool
     environment::Union{SharedFSInfo, Nothing}
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
     shared_fs::Bool
@@ -136,11 +140,12 @@ function delete_cluster(cluster::Cluster)
             status = get_instance_status(instance[2])
         end
     end
-    if cluster.shared_fs
-        delete_efs(cluster.file_system_id)
-    end
-    delete_security_group(cluster.security_group_id)
-    delete_placement_group(cluster.placement_group)
+    
+    cluster.shared_fs && delete_efs(cluster.file_system_id)
+    cluster.auto_sg && delete_security_group(cluster.security_group_id)
+    cluster.auto_pg && delete_placement_group(cluster.placement_group)
+
+    return
 end
 
 #=
@@ -312,6 +317,7 @@ end
  
 function set_hostfile(cluster_nodes, internal_key_name)
     # Esperando todo mundo estar pronto.
+    @info "---------------- $cluster_nodes"
     for instance in keys(cluster_nodes)
         while get_instance_status(cluster_nodes[instance]) != "running"
             println("Waiting for $instance to be running...")
@@ -335,10 +341,14 @@ function set_hostfile(cluster_nodes, internal_key_name)
     end
 
     # Criando o arquivo hostfile.
-    hostfile_content = ""
+    hostfile_content = "127.0.0.1 localhost\n"
+    hostfilefile_content = ""
     for instance in keys(cluster_nodes)
         private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
-        hostfile_content *= "$instance $private_ip\n"
+        hostfile_content *= "$private_ip $instance\n"
+        if instance != :master 
+           hostfilefile_content *= "$instance\n"
+        end
     end
 
     # Atualiza o hostname e o hostfile.
@@ -346,12 +356,17 @@ function set_hostfile(cluster_nodes, internal_key_name)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
         private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
         run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
-        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfile_content' > /home/ubuntu/hostfile"`)
-        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
+#        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
         run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown ubuntu:ubuntu /etc/hosts"`)
-        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "cat hosts.tmp >> /etc/hosts"`)
+        run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "cat hosts.tmp > /etc/hosts"`)
         run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown root:root /etc/hosts"`)
         run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "rm hosts.tmp"`)
+        for instance_other in keys(cluster_nodes)
+            @info "--- $instance -> $instance_other"
+            run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "ssh $instance_other uptime"`)
+        end
     end
 end
 

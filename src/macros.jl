@@ -58,25 +58,25 @@ macro deploy(contract_id)
     esc(deploy_call)
 end
 
-macro interrupt(cluster_ids...)
+macro interrupt(cluster_handles...)
     interrupt_calls = Vector()
-    for cluster_id in cluster_ids
+    for cluster_id in cluster_handles
         push!(interrupt_calls, Expr(:call, :cluster_interrupt, cluster_id))
     end
     esc(Expr(:block, interrupt_calls...))
 end
 
-macro resume(cluster_ids...)
+macro resume(cluster_handles...)
     resume_calls = Vector()
-    for cluster_id in cluster_ids
+    for cluster_id in cluster_handles
         push!(resume_calls, Expr(:call, :cluster_resume, cluster_id))
     end
     esc(Expr(:block, resume_calls...))
 end
 
-macro terminate(cluster_ids...)
+macro terminate(cluster_handles...)
     terminate_calls = Vector()
-    for cluster_id in cluster_ids
+    for cluster_id in cluster_handles
         push!(terminate_calls, Expr(:call, :cluster_terminate, cluster_id))
     end
     esc(Expr(:block, terminate_calls...))
@@ -99,4 +99,9 @@ macro select(features...)
     select_call = Expr(:call, :select_instances, common_features...)
 
     esc(select_call)
+end
+
+
+macro add(cluster_handle, packagestr)
+    @error "to be implemented"
 end

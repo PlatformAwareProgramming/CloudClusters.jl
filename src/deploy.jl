@@ -32,7 +32,7 @@ function cluster_deploy(contract_handle)
 
     cluster_deploy_info[cluster_handle] = Dict(:pids => pids, :cluster_type => cluster_type, :instance_type => instance_type, :cluster_features => cluster_features)
 
-    return cluster_handle => pids
+    return cluster_handle
 end
 
 function cluster_deploy(cluster_provider, cluster_type::Type{<:ManagerWorkers}, cluster_handle, cluster_features, instance_type)
@@ -50,8 +50,8 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:ManagerWorkers}, 
     exename_master = get(manager_features, :exename, default_exename()) |> x -> Cmd(convert(Vector{String}, split(x)))
     exename_worker = get(worker_features, :exename, default_exename()) |> x -> Cmd(convert(Vector{String}, split(x)))
 
-    directory_master = get(cluster_features, :directory, default_directory()) #|> x -> Cmd(convert(Vector{String}, split(x)))
-    directory_worker = get(cluster_features, :directory, default_directory()) #|> x -> Cmd(convert(Vector{String}, split(x)))
+    directory_master = get(cluster_features, :directory, default_directory())
+    directory_worker = get(cluster_features, :directory, default_directory())
 
     # only master
     tunnel = get(cluster_features, :tunnel, default_tunnel()) 
@@ -79,9 +79,10 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:ManagerWorkers}, 
         try
             master_id = addprocs(["$user_id@$(ip_master[:public_ip])"], exeflags=exeflags_master, dir=directory_master, sshflags=sshflags, exename=exename_master, tunnel=tunnel #=, ident=ident, connect_idents=connect_idents=#)
             successfull = true
-            @info "master deployed ..."
-        catch _ 
+            @info "master deployed ... $ntries attempts"
+        catch e
             @info "error - master deploy -- try $ntries"
+            ntries > 10 && throw(e)
         end
         ntries += 1
     end
@@ -97,10 +98,21 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:ManagerWorkers}, 
     @info "mpiflags=$mpiflags"
     @info "tunnel=$tunnel"
 
-    @fetchfrom master_id[1] addprocs(MPIWorkerManager(nw); master_tcp_interface=ip_master[:private_ip], dir=directory_worker, threadlevel=Symbol(threadlevel), mpiflags=mpiflags, exename=exename_worker, exeflags=exeflags_worker)
-    @info "workers deployed ..."
+    successfull = false
+    ntries = 1
+    while !successfull
+        try
+            @fetchfrom master_id[1] addprocs(MPIWorkerManager(nw); master_tcp_interface=ip_master[:private_ip], dir=directory_worker, threadlevel=Symbol(threadlevel), mpiflags=mpiflags, exename=exename_worker, exeflags=exeflags_worker)
+            successfull = true
+            @info "workers deployed ... $ntries attempts"
+        catch e 
+            @info "error - workers deploy -- try $ntries"
+            ntries > 10 && throw(e)
+        end
+        ntries += 1
+    end
 
-    return master_id[1]
+    return master_id
 
 end
 
@@ -113,7 +125,7 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:PeerWorkers}, clu
     sshflags = get(cluster_features, :sshflags, default_sshflags()) |> x -> Cmd(convert(Vector{String}, split(x)))
     exeflags = get(cluster_features, :exeflags, default_exeflags()) |> x -> Cmd(convert(Vector{String}, split(x)))
     exename = get(cluster_features, :exename, default_exename()) |> x -> Cmd(convert(Vector{String}, split(x)))
-    directory = get(cluster_features, :directory, default_directory()) #|> x -> Cmd(convert(Vector{String}, split(x)))
+    directory = get(cluster_features, :directory, default_directory()) 
     tunnel = get(cluster_features, :tunnel, default_tunnel()) 
     #ident = get(cluster_features, :ident, default_ident())
     #connect_idents = get(cluster_features, :security_group_id, default_connect_ident()) 
@@ -123,26 +135,37 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:PeerWorkers}, clu
     @info "exeflags=$exeflags"
     @info "tunnel=$tunnel"
     @info "directory=$directory"
-
-    sleep(5)
     
-    peer_ids = addprocs(["$user_id@$(ip[:public_ip])" for ip in values(ips)], exeflags=`$exeflags`, dir=directory, sshflags=sshflags, exename=exename, tunnel=tunnel#=, ident=ident, connect_idents=connect_idents=#)
+    peer_ids = nothing
+    ntries = 1
+    successfull = false
+    while !successfull
+        try
+            peer_ids = addprocs(["$user_id@$(ip[:public_ip])" for ip in values(ips)], exeflags=`$exeflags`, dir=directory, sshflags=sshflags, exename=exename, tunnel=tunnel#=, ident=ident, connect_idents=connect_idents=#)
+            successfull = true
+            @info "peers deployed ... $ntries attempts"
+        catch e
+            @info "error - peers deploy -- try $ntries"
+            ntries > 10 && throw(e)
+        end
+        ntries += 1
+    end
 
     return peer_ids
 
 end
 
 function cluster_interrupt(cluster_handle)
-    interrupt_cluster(cluster_deploy_info[cluster_handle][:cluster_features][:cluster_provider], cluster_handle)
+    interrupt_cluster(cluster_deploy_info[cluster_handle][:cluster_features][:node_provider], cluster_handle)
 end
 
 function cluster_resume(cluster_handle)
-    resume_cluster(cluster_deploy_info[cluster_handle][:cluster_features][:cluster_provider], cluster_handle)
+    resume_cluster(cluster_deploy_info[cluster_handle][:cluster_features][:node_provider], cluster_handle)
 end
 
 function cluster_terminate(cluster_handle)
     for pid in cluster_deploy_info[cluster_handle][:pids]
         rmprocs(pid)
     end
-    terminate_cluster(cluster_deploy_info[cluster_handle][:cluster_features][:cluster_provider], cluster_handle)
+    terminate_cluster(cluster_deploy_info[cluster_handle][:cluster_features][:node_provider], cluster_handle)
 end

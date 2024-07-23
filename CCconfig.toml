@@ -1,7 +1,7 @@
 
 [defaults]
 
-imageid = "ami-0745f6d6a24395345"
+imageid = "ami-09022a8dfe7522864"
 #placement_group = "automatic"
 #"default_placement_group"
 security_group_id = "sg-039de945285a31f89"

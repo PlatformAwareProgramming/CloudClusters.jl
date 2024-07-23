@@ -65,12 +65,12 @@ function deploy_cluster(_::Type{AmazonEC2},
     placement_group = get(cluster_features, :placement_group, get(defaults_dict, :placement_group, nothing))  
     security_group_id = get(cluster_features, :security_group_id, get(defaults_dict, :security_group_id, nothing)) 
 
-    placement_group = placement_group == "automatic" ? create_placement_group(string("pgroup_", cluster_handle)) : placement_group
-    security_group_id = security_group_id == "automatic" ? create_security_group(string("sgroup_", cluster_handle), "") : security_group_id
+    auto_pg, placement_group = placement_group == "automatic" ? (true, create_placement_group(string("pgroup_", cluster_handle))) : (false, placement_group)
+    auto_sg, security_group_id = security_group_id == "automatic" ? (true, create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
 
     cluster = ManagerWorkersCluster(string("cluster_", cluster_handle), instance_type_master, instance_type_worker, count, 
                                          keyname_master, keyname_worker, imageid_master, imageid_worker, 
-                                         subnet_id, placement_group, security_group_id,
+                                         subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                          nothing, nothing, false)
     
     create_cluster(cluster)
@@ -107,8 +107,8 @@ function deploy_cluster(_::Type{AmazonEC2},
     placement_group = get(cluster_features, :placement_group, get(defaults_dict, :placement_group, nothing))  
     security_group_id = get(cluster_features, :security_group_id, get(defaults_dict, :security_group_id, nothing)) 
 
-    placement_group = placement_group == "automatic" ? create_placement_group(string("pgroup_", cluster_handle)) : placement_group
-    security_group_id = security_group_id == "automatic" ? create_security_group(string("sgroup_", cluster_handle), "") : security_group_id
+    auto_pg, placement_group = placement_group == "automatic" ? (true, create_placement_group(string("pgroup_", cluster_handle))) : (false, placement_group)
+    auto_sg, security_group_id = security_group_id == "automatic" ? (true, create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
 
     @info "count=$count"
     @info "imageid=$imageid"
@@ -119,7 +119,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     @info "instance_type=$instance_type"
 
     cluster = PeerWorkersCluster(string("cluster_", cluster_handle), instance_type, count, 
-                                      keyname, imageid, subnet_id, placement_group, security_group_id,
+                                      keyname, imageid, subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                       nothing, nothing, false)
 
     create_cluster(cluster)
@@ -134,13 +134,13 @@ end
 #==== INTERRUPT CLUSTER ====#
 
 function interrupt_cluster(type::Type{AmazonEC2}, cluster_handle)
-    
+    @error "not yet implemented"
 end
 
 #==== CONTINUE CLUSTER ====#
 
 function resume_cluster(type::Type{AmazonEC2}, cluster_handle)
-    
+  @error "not yet implemented"    
 end
 
 #==== TERMINATE CLUSTER ====#
