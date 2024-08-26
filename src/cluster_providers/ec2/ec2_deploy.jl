@@ -140,7 +140,7 @@ end
 #==== CONTINUE CLUSTER ====#
 
 function resume_cluster(type::Type{AmazonEC2}, cluster_handle)
-  @error "not yet implemented"    
+    @error "not yet implemented"    
 end
 
 #==== TERMINATE CLUSTER ====#

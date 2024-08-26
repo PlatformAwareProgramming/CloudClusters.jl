@@ -21,7 +21,7 @@ default_sshflags() = defaults_dict[:sshflags]
 
 function cluster_deploy(contract_handle)
 
-    cluster_handle = gensym()
+    cluster_handle = create_sym(15)
 
     cluster_type, cluster_features = cluster_contract[contract_handle]
     instance_type = cluster_contract_resolved[contract_handle]
@@ -81,7 +81,9 @@ function cluster_deploy(cluster_provider, cluster_type::Type{<:ManagerWorkers}, 
             successfull = true
             @info "master deployed ... $ntries attempts"
         catch e
-            @info "error - master deploy -- try $ntries"
+            @error e
+            rmprocs(2)
+            @info "error - master deploy -- try $ntries"            
             ntries > 10 && throw(e)
         end
         ntries += 1
