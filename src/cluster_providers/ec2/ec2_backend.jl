@@ -336,7 +336,7 @@ function set_hostfile(cluster_nodes, internal_key_name)
     for instance in keys(cluster_nodes)
         while get_instance_status(cluster_nodes[instance]) != "running"
             println("Waiting for $instance to be running...")
-            sleep(5)
+            sleep(1)
         end
     end
 
@@ -350,7 +350,6 @@ function set_hostfile(cluster_nodes, internal_key_name)
                 connection_ok = true
             catch e
                 println("Waiting for $instance to be accessible...")
-                sleep(5)
             end
         end
     end
