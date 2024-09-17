@@ -48,7 +48,9 @@ function cluster_save(_::Type{AmazonEC2}, cluster::ManagerWorkersCluster)
     contents["cluster_nodes"] = cluster.cluster_nodes
     contents["cluster_features"] = cluster.features
 
-    open(string(cluster.name, ".cluster"), "w") do io
+    configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
+
+    open(joinpath(configpath, string(cluster.name, ".cluster")), "w") do io
         TOML.print(io, contents) do x
             x isa DataType && return string(x)
             error("unhandled type $(typeof(x))")
@@ -83,7 +85,9 @@ function cluster_save(_::Type{AmazonEC2}, cluster::PeerWorkersCluster)
 
     @info cluster.name
 
-    open(string(cluster.name, ".cluster"), "w") do io
+    configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
+
+    open(joinpath(configpath, string(cluster.name, ".cluster")), "w") do io
         TOML.print(io, contents) do x
             x isa DataType && return string(x)
             error("unhandled type $(typeof(x))")

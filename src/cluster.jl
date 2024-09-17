@@ -76,6 +76,8 @@ function cluster_list(;from = DateTime(0), cluster_type = :AnyCluster)
                 if cluster_isrunning(cluster_info) 
                    @info "$this_cluster_type $cluster_handle, created at $timestamp on $cluster_provider"
                    result[cluster_handle] = Dict(:timestamp => timestamp, :info => cluster_info)
+                else
+                    forget_cluster(cluster_provider_type, cluster_handle)
                 end
             end
         end

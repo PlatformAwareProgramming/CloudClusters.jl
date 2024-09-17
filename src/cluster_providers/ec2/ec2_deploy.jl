@@ -148,11 +148,11 @@ end
 
 #==== TERMINATE CLUSTER ====#
 
-function terminate_cluster(type::Type{AmazonEC2}, cluster_handle)
+function terminate_cluster(provider::Type{AmazonEC2}, cluster_handle)
   cluster, _ = ec2_cluster_info[cluster_handle]
   delete_cluster(cluster)
   delete!(ec2_cluster_info, cluster_handle)
-  rm("$cluster_handle.cluster")
+  forget_cluster(provider, cluster_handle)
   nothing
 end
 
@@ -177,3 +177,7 @@ function get_user(_::Type{AmazonEC2}, cluster::PeerWorkersCluster)
   get(cluster.features, :user, defaults_dict[:user]) 
 end
     
+function forget_cluster(_::Type{AmazonEC2}, cluster_handle)
+  configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
+  rm(joinpath(configpath, "$cluster_handle.cluster"))
+end

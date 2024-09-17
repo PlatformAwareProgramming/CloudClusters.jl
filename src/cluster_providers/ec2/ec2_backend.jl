@@ -613,7 +613,7 @@ function resume_cluster(cluster::PeerWorkersCluster)
   @info "resume $cluster (under development)"
 end
 
-# Check if the cluster instances are running.
+# Check if the cluster instances are running or interrupted.
 function cluster_isrunning(cluster::ManagerWorkersCluster)
     return true
 end
