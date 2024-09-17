@@ -3,8 +3,10 @@ using TOML
 function readCCConfig()
 
     # read the platform description file (default to the current directory)
-    filename = get(ENV,"CLOUD_CLUSTERS_CONFIG","CCconfig.toml")
-    
+    configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
+
+    filename = string(configpath, "/CCconfig.toml")
+
     @info "reading configurations from $filename"
 
     ccconfig_toml =   

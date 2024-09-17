@@ -1,11 +1,12 @@
 name = "CloudClusters"
 uuid = "4ca6f12b-c8f1-4945-b50f-6bb73234c039"
-version = "0.1.0"
 authors = ["Francisco Heron de Carvalho Junior <heron@dc.ufc.br> e João Marcelo Uchôa de Alencar <joao.marcelo@ufc.br>"]
+version = "0.1.0"
 
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 FilePathsBase = "48062228-2e41-5def-b9a4-89aafe57970f"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
@@ -23,7 +24,7 @@ Base64 = "1.10.4"
 Distributed = "1.10.4"
 FilePathsBase = "0.9.21"
 MPIClusterManagers = "0.2.4"
-PlatformAware = "0.5.1"
+PlatformAware = "0.6"
 Random = "1.10.4"
 Serialization = "1.10.4"
 Sockets = "1.10.4"

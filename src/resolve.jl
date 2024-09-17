@@ -85,3 +85,24 @@ function select_instances(filter...)
 
 end
 
+function fectch_features(instance_info; keytype = Symbol)
+
+    parameters = Vector()
+    instance_feature_table = Dict{Symbol, Any}()
+    push!(parameters, :resolve)
+    for name in instance_features_order
+
+        name_key = keytype == String ? string(name) : name
+        par = get(instance_info, name_key, instance_features[name])        
+
+        ft = par isa Type ? par : PlatformAware.getFeature(name, par, instance_features, instance_features_type)
+        
+        push!(parameters, :($name::Type{>:$ft}))
+
+        par_type = Type{>:ft}
+        instance_feature_table[name] = par_type
+
+    end
+
+    return parameters, instance_feature_table
+end
