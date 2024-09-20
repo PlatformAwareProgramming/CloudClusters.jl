@@ -134,13 +134,15 @@ end
 #==== INTERRUPT CLUSTER ====#
 
 function interrupt_cluster(type::Type{AmazonEC2}, cluster_handle)
-    @error "not yet implemented"
+  cluster = ec2_cluster_info[cluster_handle]
+  stop_instances(cluster)
 end
 
 #==== CONTINUE CLUSTER ====#
 
 function resume_cluster(type::Type{AmazonEC2}, cluster_handle)
-    @error "not yet implemented"    
+  cluster = ec2_cluster_info[cluster_handle]
+  start_instances(cluster)    
 end
 
 #==== TERMINATE CLUSTER ====#
