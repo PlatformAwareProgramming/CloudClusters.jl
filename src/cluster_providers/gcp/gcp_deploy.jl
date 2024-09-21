@@ -1,5 +1,3 @@
-#abstract type GCPCluster <: ClusterProvider end
-
 
 # 1. creates a worker process in the master node
 # 2. from the master node, create worker processes in the compute nodes with MPIClusterManager
@@ -19,21 +17,24 @@ function deploy_cluster(type::Type{GoogleCloud}, mode::Type{CreateMode}, feature
 
 end
 
+function launch_processes(_::Type{GoogleCloud}, cluster_features, cluster_type, ips, user_id)
+    launch_processes_ssh(cluster_features, cluster_type, ips, user_id)
+end
 
 #==== INTERRUPT CLUSTER ====#
 
-function interrupt_cluster(wid, type::Type{GoogleCloud})
+function interrupt_cluster(type::Type{GoogleCloud}, cluster_handle)
     
 end
 
 #==== CONTINUE CLUSTER ====#
 
-function resume_cluster(wid, type::Type{GoogleCloud})
+function resume_cluster(type::Type{GoogleCloud}, cluster_handle)
     
 end
 
 #==== TERMINATE CLUSTER ====#
 
-function terminate_cluster(wid, type::Type{GoogleCloud})
+function terminate_cluster(type::Type{GoogleCloud}, cluster_handle)
     
 end

@@ -61,9 +61,8 @@ mutable struct SharedFSInfo
     file_system_ip::String
 end
 
-abstract type Cluster end
-
-mutable struct ManagerWorkersCluster <: Cluster
+mutable struct ManagerWorkersCluster <: ManagerWorkers #Cluster
+    provider::Type{AmazonEC2}
     name::String
     instance_type_master::String
     instance_type_worker::String
@@ -80,10 +79,12 @@ mutable struct ManagerWorkersCluster <: Cluster
     environment::Union{SharedFSInfo, Nothing}
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
     shared_fs::Bool
+    features::Dict{Symbol, Any}
 end
 
 
-mutable struct PeerWorkersCluster <: Cluster
+mutable struct PeerWorkersCluster <: PeerWorkers # Cluster
+    provider::Type{AmazonEC2}
     name::String
     instance_type::String
     count::Int
@@ -97,6 +98,7 @@ mutable struct PeerWorkersCluster <: Cluster
     environment::Union{SharedFSInfo, Nothing}
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
     shared_fs::Bool
+    features::Dict{Symbol, Any}
 end
 
 function create_cluster(cluster::Cluster)
@@ -114,9 +116,9 @@ function create_cluster(cluster::Cluster)
 end
 
 
-function get_ips(cluster_handle::Cluster)
+function get_ips(_::Type{AmazonEC2}, cluster::Cluster)
     ips = Dict()
-    for (node, id) in cluster_handle.cluster_nodes
+    for (node, id) in cluster.cluster_nodes
         public_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
         private_ip = Ec2.describe_instances(Dict("InstanceId" => id))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
         ips[node]=Dict(:public_ip => public_ip, :private_ip => private_ip)
@@ -601,3 +603,33 @@ function delete_efs(file_system_id)
     Efs.delete_file_system(file_system_id)
 end
 
+# Heron: "se as definições são a mesma para os tipos de clusters, use cluster::Cluster como parâmetro em um único método"
+
+# Interrupt cluster instances. If someone is not in "running" state, raise an exception.
+function interrupt_cluster(cluster::ManagerWorkersCluster)
+  @info "interrupt manager-workers $cluster (under development)"
+end
+
+function interrupt_cluster(cluster::PeerWorkersCluster)
+  @info "interrupt peer-workers $cluster (under development)"
+end
+
+# Start interrupted cluster instances or reboot running cluster instances.
+# All instances must be in "interrupted" or "running" state.
+# If some instance is not in "interrupted" or "running" state, raise an exception.
+function resume_cluster(cluster::ManagerWorkersCluster)
+  @info "resume $cluster (under development)"
+end
+
+function resume_cluster(cluster::PeerWorkersCluster)
+  @info "resume $cluster (under development)"
+end
+
+# Check if the cluster instances are running or interrupted.
+function cluster_isrunning(cluster::ManagerWorkersCluster)
+    return true
+end
+
+function cluster_isrunning(cluster::PeerWorkersCluster)
+    return true
+end

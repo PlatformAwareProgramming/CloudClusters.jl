@@ -37,8 +37,8 @@ macro cluster(features...)
         end
     end
 
-    push!(common_features, Expr(:call, :(=>), :(:manager_features), Expr(:call, :Dict, manager_features...)))
-    push!(common_features, Expr(:call, :(=>), :(:worker_features), Expr(:call, :Dict, worker_features...)))
+    !isempty(manager_features) && push!(common_features, Expr(:call, :(=>), :(:manager_features), Expr(:call, :Dict, manager_features...)))
+    !isempty(worker_features) && push!(common_features, Expr(:call, :(=>), :(:worker_features), Expr(:call, :Dict, worker_features...)))
     
     cluster_create_call = Expr(:call, :cluster_create, common_features...)
 
@@ -101,7 +101,27 @@ macro select(features...)
     esc(select_call)
 end
 
+macro clusters(params...)
 
-macro add(cluster_handle, packagestr)
-    @error "to be implemented"
+    kw_params = Vector()
+
+    for p in params
+        @assert p.head == :(=)
+
+        param_k = p.args[1]
+        param_v = p.args[2]
+
+        push!(kw_params, Expr(:kw, param_k, param_v))
+    end
+
+    call = Expr(:call, :cluster_list, kw_params...)
+
+    esc(call)
+end
+
+macro restart(param)
+
+    call = Expr(:call, :cluster_restart, param)
+
+    esc(call)
 end

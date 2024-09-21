@@ -56,19 +56,7 @@ for (instance_type, instance_info) in db
     instance_info["processor_microarchitecture"] = processor_arch
     instance_info["processor_manufacturer"] = processor_man
 
-    parameters = Vector()
-    instance_feature_table = Dict{Symbol, Any}()
-    push!(parameters, :resolve)
-    for name in instance_features_order
-        par = instance_info[string(name)]
-        ft = PlatformAware.getFeature(name, par, instance_features, instance_features_type)
-        
-        push!(parameters, :($name::Type{>:$ft}))
-
-        par_type = Type{>:ft}
-        instance_feature_table[name] = par_type
-
-     end
+    parameters, instance_feature_table = fectch_features(instance_info, keytype = String)
 
     instance_type_table[instance_type] = instance_feature_table
 

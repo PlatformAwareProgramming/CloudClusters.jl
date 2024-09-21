@@ -24,9 +24,10 @@
 #  -- storage type (EBS)
 
 
-abstract type ClusterType end
-abstract type ManagerWorkers <: ClusterType end   # 1 nó master (head node) e N nós de computação
-abstract type PeerWorkers <: ClusterType end      # sem distinção de nó master
+abstract type Cluster end
+abstract type ManagerWorkers <: Cluster end   # 1 nó master (head node) e N nós de computação
+abstract type PeerWorkers <: Cluster end      # sem distinção de nó master
+
 
 cluster_contract = Dict()
 
@@ -48,5 +49,40 @@ end
 
 function forget_cluster(contract_handle)
     delete!(cluster_contract, contract_handle) 
+end
+
+
+function cluster_list(;from = DateTime(0), cluster_type = :AnyCluster)
+
+    @assert cluster_type in [:AnyCluster, :ManagerWorkers, :PeerWorkers]
+
+    result = Dict()
+
+    configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
+
+    path_contents = readdir(configpath; join = true)
+
+    for cluster_file in path_contents
+        if occursin(r"\s*.cluster", cluster_file)
+            contents = TOML.parsefile(cluster_file)
+            timestamp = DateTime(contents["timestamp"])
+            this_cluster_type = contents["type"]
+            cluster_handle = Symbol(contents["name"])
+            if timestamp > from && (cluster_type == :AnyCluster || cluster_type == Symbol(this_cluster_type))
+                cluster_provider = contents["provider"]
+                cluster_provider_type = fetchtype(cluster_provider)
+                this_cluster_type_type = fetchtype(this_cluster_type)
+                cluster_info = cluster_load(cluster_provider_type, this_cluster_type_type, cluster_handle, contents)
+                if cluster_isrunning(cluster_info) 
+                   @info "$this_cluster_type $cluster_handle, created at $timestamp on $cluster_provider"
+                   result[cluster_handle] = Dict(:timestamp => timestamp, :info => cluster_info)
+                else
+                    forget_cluster(cluster_provider_type, cluster_handle)
+                end
+            end
+        end
+    end
+
+    return result
 end
 
