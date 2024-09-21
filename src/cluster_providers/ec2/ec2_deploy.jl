@@ -133,15 +133,17 @@ end
 #==== INTERRUPT CLUSTER ====#
 
 function interrupt_cluster(type::Type{AmazonEC2}, cluster_handle)
-  cluster = ec2_cluster_info[cluster_handle]
-  stop_instances(cluster)
+  cluster, _ = ec2_cluster_info[cluster_handle]
+  interrupt_cluster(cluster)
 end
 
 #==== RESUME CLUSTER ====#
 
 function resume_cluster(type::Type{AmazonEC2}, cluster_handle)
-  cluster = ec2_cluster_info[cluster_handle]
-  start_instances(cluster)    
+  cluster, user = ec2_cluster_info[cluster_handle]
+  resume_cluster(cluster)    
+  ips = get_ips(AmazonEC2, cluster) 
+  return ips, user
 end
 
 #==== TERMINATE CLUSTER ====#

@@ -150,17 +150,6 @@ function delete_cluster(cluster::Cluster)
     return
 end
 
-function stop_instances(cluster::Cluster)
-    for id in values(cluster.cluster_nodes)
-        Ec2.stop_instances(id)
-    end
-end
-
-function start_instances(cluster::Cluster)
-    for id in values(cluster.cluster_nodes)
-        Ec2.start_instances(id)
-    end
-end
 
 #=
 Grupo de Alocação
@@ -632,4 +621,17 @@ end
 
 function cluster_isrunning(cluster::PeerWorkersCluster)
     return true
+end
+
+
+function stop_instances(cluster::Cluster)
+    for id in values(cluster.cluster_nodes)
+        Ec2.stop_instances(id)
+    end
+end
+
+function start_instances(cluster::Cluster)
+    for id in values(cluster.cluster_nodes)
+        Ec2.start_instances(id)
+    end
 end
