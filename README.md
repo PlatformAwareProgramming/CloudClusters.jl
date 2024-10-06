@@ -36,6 +36,7 @@ _CloudClusters.jl_ offers six primitives to create and manage the lifecycle of a
 
 ## Running computations on multiple clusters
 
+## Reconnecting to a non-terminated cluster
 
 ## Working with cluster contracts (the advanced way)
 
