@@ -16,9 +16,9 @@ _CloudClusters.jl_ targets users of the Julia programming language who want to t
 We assume that the authentication to the IaaS provider is correctly configured in the environment where the Julia REPL session or standalone program will execute. 
 In what follows, we teach how to create clusters and deploy computations on them using _Distributed.jl_ primitives.
 
-## How to create one or more clusters (the simplest way)
+## How to create clusters (the simplest way)
 
-_CloudClusters.jl_ offers six primitives to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained below, with a simple example that you can try to reproduce in a REPL session.
+_CloudClusters.jl_ offers the following six primitives, implemented as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained in the following paragraphs, with a simple example that you can try to reproduce in a REPL session. For function (non-macro) versions of the primitives, visit the section [The non-macro interface](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#the-non-macro-interface).
 
 ### @cluster
 
@@ -32,11 +32,13 @@ _CloudClusters.jl_ offers six primitives to create and manage the lifecycle of a
 
 ### @resume
 
-## Running computations on a cluster
+## How to run computations on a cluster
 
-## Running computations on multiple clusters
+## How to run computations on multiple clusters
 
-## Reconnecting to a non-terminated cluster
+## How to reconnect to a non-terminated cluster
+
+## The non-macro interface
 
 ## Working with cluster contracts (the advanced way)
 
