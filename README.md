@@ -132,7 +132,7 @@ julia> workers(my_third_cluster)
 21
 ```
 
-The user may orchestrate all the deployed clusters to execute computations of their interest, independent of their provider. However, it is important to notice that _MPI.jl_ computations are restricted to be performed between the processes of the same cluster. Communication operations between the nodes of different clusters may still be performed by means of _Distributed.jl_, or using the master process as an intermediary. However, inter-cluster communication must be employed with care, only when strictly necessary and asynchronously, if possible, overlapping it with computations, due to the high communication overhead between clusters.
+The user may orchestrate all the deployed clusters to execute computations of their interest, independent of their provider. However, it is important to notice that _MPI.jl_ computations are restricted to be performed between the processes of the same cluster. Communication operations between the nodes of different clusters may still be performed through _Distributed.jl_, or using the master process as an intermediary. However, inter-cluster communication must be employed with care, only when strictly necessary and asynchronously, if possible, overlapping it with computations, due to the high communication overhead between clusters.
 
 ## Interrrupting and resuming a cluster
 
@@ -157,9 +157,20 @@ Finally, a cluster may be finished/terminated using the ___@terminate___ macro:
 @terminate my_first_cluster
 ```
 
-
-
 ## How to reconnect to a non-terminated cluster
+
+If a cluster is not terminated in the execution of a standalone program or REPL session, it can be restarted by referring to its cluster handle in a call to the ___@restart___ macro. For example:
+
+```julia
+@restart :FXqElAnSeTEpQAm
+```
+
+In the above code, ```:FXqElAnSeTEpQAm``` is the cluster_handle of a cluster not determined in a previous execution session. But how may the user discover the cluster handle of a non-terminated cluster? For that, the user may call the ___@clusters___ macro, which returns a list of non-terminated clusters in previous sessions that may be restarted:
+
+```julia
+@clusters
+```
+
 
 ## Working with cluster contracts (the advanced way)
 
