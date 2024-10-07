@@ -77,7 +77,8 @@ The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, us
    rank = MPI.Comm_rank(MPI.COMM_WORLD)
    size = MPI.Comm_size(MPI.COMM_WORLD)
    @info "I am $rank among $size processes"
-   rank_sum = MPI.Reduce(rank, (x,y) -> x + y, 0, MPI.COMM_WORLD)
+   root_rank = 0
+   rank_sum = MPI.Reduce(rank, (x,y) -> x + y, root_rank, MPI.COMM_WORLD)
 end
 
 result = @fetchfrom ranks(my_first_cluster0)[0] rank_sum
@@ -88,11 +89,11 @@ The parallel code calculates the sum of the ranks of the processes using the _Re
 
 ## Multiple clusters
 
-The user can create as many cluster contracts as necessary, as well as as many clusters from them. For example, the following code creates a second cluster contract asking for a cluster of eight VM instances equipped with NVIDIA Turing GPUs with at least 16GB of memory and then create two clusters from it.
+The user can create as many cluster contracts as necessary, as well as as many clusters from them. For example, the following code creates a second cluster contract, named ```my_second_cluster_contract```, asking for a cluster of eight VM instances equipped with GPUs of NVIDIA Turing architecture having at least 16GB of memory. Then, it creates two clusters from ```my_second_cluster_contract```. 
 
 ```julia
 
-my_second_cluster_contract = @cluster(nodes => 8,
+my_second_cluster_contract = @cluster(nodes_count => 8,
                                       accelerator_count => @just(1),
                                       accelerator_architecture => Turing,
                                       accelerator_memory => @atleast(16G))
@@ -102,10 +103,13 @@ my_second_cluster_contract = @cluster(nodes => 8,
 my_second_cluster = @deploy my_second_cluster_contract
 my_third_cluster = @deploy my_second_cluster_contract
 ```
+
+In the above code, notice the advanced use of cluster contracts, by asking for instance types that satisfy a set of assumptions. At the time this tutoral was written, the AWS EC2 instance type that satisfy these assumptions is ___g4dn.xlarge___, equipped with NVIDIA Tesla T4 GPUs.
+
 Now, there are three available clusters. The _pids_ of the last two ones may be inspected:
 
 ```julia-repl
-julia> pids2 = workers(my_second_cluster)
+julia> workers(my_second_cluster)
 8-element Vector{Int64}
 6
 7
@@ -116,7 +120,7 @@ julia> pids2 = workers(my_second_cluster)
 12
 13
 
-julia> pids3 = workers(my_third_cluster)
+julia> workers(my_third_cluster)
 8-element Vector{Int64}
 14
 15
@@ -128,19 +132,21 @@ julia> pids3 = workers(my_third_cluster)
 21
 ```
 
+The user may orchestrate all the deployed clusters to execute computations of their interest, independent of their provider. However, it is important to notice that _MPI.jl_ computations are restricted to be performed between the processes of the same cluster. Communication operations between the nodes of different clusters may still be performed by means of _Distributed.jl_, or using the master process as an intermediary. However, inter-cluster communication must be employed with care, only when strictly necessary and asynchronously, if possible, overlapping it with computations, due to the high communication overhead between clusters.
+
 ## Interrrupting and resuming a cluster
 
-The cluster may be interrupted through the ___@interrupt___ macro: 
+A cluster may be interrupted through the ___@interrupt___ macro: 
 
 ```julia
 @interrupt my_first_cluster
 ```
-After ___@interrupt___ completes, the VM instances of cluster nodes are paused/stopped, and can be resumed/restarted through the ___@resume___ macro:
+After ___@interrupt___ completes, the VM instances of the cluster nodes are paused/stopped, and can be resumed/restarted through the ___@resume___ macro:
 
 ```julia
 @resume my_first_cluster
 ```
-It is important to notice that ___@interrupt___ finishes the worker processes across all cluster nodes. So, it does not automatically preserve the state of undergoing computations. The interruption of a cluster may be used with the only purpose to pause VM instances underying the cluster nodes. The __@resume___ operation creates a fresh set of worker processes, with different _pids_.
+It is important to notice that ___@interrupt___ kills the worker processes running at the cluster nodes, not preserving the state of undergoing computations in the cluster. The interruption of a cluster may be used to pause the cloud resources underlying the VM instances of the cluster nodes. In turn, the ___@resume___ operation creates a fresh set of worker processes, with different _pids_. So, it is user's responsibility to save the state of any undergoing computation in a cluster to be interrupted, to restart them after resuming. 
 
 
 ## Terminating a cluster
