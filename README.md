@@ -31,7 +31,9 @@ my_first_cluster_contract = @cluster  node_count => 4  node_machinetype => EC2Ty
 
 ```
 
-The __@cluster__ macro will not instantiate the cluster yet. It will create a _cluster contract_, from which the user can create one or more clusters. The variable ```my_first_cluster_contract``` receives a _contract handle_. Handles are symbols comprising 15 randomly calculated lower- and upper-case alphabetic characters (e.g.,```:FXqElAnSeTEpQAm``` ). Since they are symbols, they are printable and may be used directly to refer to a cluster contract.
+The __@cluster__ macro will not instantiate the cluster yet. It will create a _cluster contract_, from which the user can create one or more clusters. 
+
+The variable ```my_first_cluster_contract``` receives a _contract handle_. In _CloudClusters.jl_, a handle is a symbol comprising 15 randomly calculated lower- and upper-case alphabetic characters (e.g.,```:FXqElAnSeTEpQAm``` ). Since they are symbols, they are printable and may be used directly to refer to a cluster contract.
 
 A cluster contract must be resolved to be able to instantiate clusters from it. For that, the user needs to apply __@resolve__, as below:
 
@@ -39,18 +41,46 @@ A cluster contract must be resolved to be able to instantiate clusters from it. 
 @resolve my_first_cluster_contract
 ```
 
-The __@resolve__ macro will trigger a resolution procedure to calculate which instance type provided by a supported IaaS provider satisfies the contract. For this simple contract, the response is explicitly specified in the exemplified contract, i.e., the ___t3.xlarge___ instance type offered by AWS EC2. For more advanced contract specifications, where cluster contract resolution shows its power, the reader will read the section [Working with cluster contracts (the advanced way)](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts-the-advanced-way).
+The __@resolve__ macro will trigger a resolution procedure to calculate which instance type provided by a supported IaaS provider satisfies the contract. For this simple contract, the response is explicitly specified in the exemplified contract, i.e., the ___t3.xlarge___ instance type offered by AWS EC2. For more advanced contract specifications, where cluster contract resolution shows its power, the reader can read the section [Working with cluster contracts (the advanced way)](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts-the-advanced-way).
 
 A cluster may be instantiated by using ___@deploy___:
 
 ```julia
-my_first_cluster = @deploy my_first_cluster_contract
+my_first_cluster = @deploy my_first_cluster
 ```
 
 The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AWS EC2 instances, returning a cluster handle in the ```my_first_cluster``` variable. 
 
 The process of creating instances, until they are ready to be connected to the master process through worker processes instantiated in each of them via _Distributed.jl_, can be lengthy, depending on the provider.
 
+For each node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the _pids_ of the cluster nodes are 2, 3, 4, and 5.
+
+```julia
+julia> workers(my_first_cluster)
+4-element Vector{Int64}
+2
+3
+4
+5
+```
+
+The cluster may be interrupted through the ___@interrupt___ macro: 
+
+```julia
+@interrupt my_first_cluster
+```
+After ___@interrupt___ completes, the VM instances of cluster nodes are paused/stopped, and can be resumed/restarted through the ___@resume___ macro:
+
+```julia
+@resume my_first_cluster
+```
+It is important to notice that ___@interrupt___ finishes the worker processes across all cluster nodes. So, it does not automatically preserve the state of undergoing computations. The interruption of a cluster may be used with the only purpose to pause VM instances underying the cluster nodes. The __@resume___ operation creates a fresh set of worker processes, with different _pids_.
+
+Finally, a cluster may be finished/terminated using the ___@terminate___ macro:
+
+```julia
+@terminate my_first_cluster
+```
 
 
 
