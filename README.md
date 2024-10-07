@@ -21,7 +21,7 @@ In what follows, we teach how to create clusters and deploy computations on them
 _CloudClusters.jl_ offers the following six primitives, implemented as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained in the following paragraphs, with a simple example you can try to reproduce in a REPL session. 
 It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available in an accessible path.
 
-First, let us examine a simple scenario where a user wants to create a cluster comprising 4 ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. For that, the user must use the __@cluster__ macro, passing the number of nodes and instance type as arguments.
+First, let us examine a simple scenario where a user wants to create a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. For that, the user must use the __@cluster__ macro, passing the number of nodes and instance type as arguments.
 
 ```julia
 using CloudClusters
@@ -53,7 +53,7 @@ The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AW
 
 The process of creating instances, until they are ready to be connected to the master process through worker processes instantiated in each of them via _Distributed.jl_, can be lengthy, depending on the provider.
 
-For each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the _pids_ of the cluster nodes are 2, 3, 4, and 5.
+For each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the _pids_ of the processes at the cluster nodes are 2, 3, 4, and 5. 
 
 ```julia-repl
 julia> workers(my_first_cluster)
@@ -67,6 +67,24 @@ julia> workers(my_first_cluster)
 ## Running computations on the cluster
 
 The user may execute parallel computations on the cluster by using _Distributed.jl_ to communicate with cluster nodes from the master process and _MPI.jl_ to implement the parallel computation between cluster nodes. 
+
+The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, using the ```@everywhere``` primitive of _Distributed.jl_. 
+
+```julia
+@everywhere workers(my_first_cluster) begin
+   @eval using MPI
+   MPI.Init()
+   rank = MPI.Comm_rank(MPI.COMM_WORLD)
+   size = MPI.Comm_size(MPI.COMM_WORLD)
+   @info "I am $rank among $size processes"
+   rank_sum = MPI.Reduce(rank, (x,y) -> x + y, 0, MPI.COMM_WORLD)
+end
+
+result = @fetchfrom ranks(my_first_cluster0)[0] rank_sum
+@info "The sum of ranks in the cluster is $result"
+```
+
+The parallel code calculates the sum of the ranks of the processes using the _Reduce_ collective operation of _MPI.jl_, and stores the results in the global variable _rank_sum_ of the root process, with rank 0. Then, this value is fetched by the program and assigned to the _result_ variable using ```@fetchfrom```. For that, the ```ranks``` function is used to discover the _pid_ of the root process.
 
 ## Multiple clusters
 
@@ -87,7 +105,7 @@ my_third_cluster = @deploy my_second_cluster_contract
 Now, there are three available clusters. The _pids_ of the last two ones may be inspected:
 
 ```julia-repl
-julia> workers(my_second_cluster)
+julia> pids2 = workers(my_second_cluster)
 8-element Vector{Int64}
 6
 7
@@ -98,7 +116,7 @@ julia> workers(my_second_cluster)
 12
 13
 
-julia> workers(my_third_cluster)
+julia> pids3 = workers(my_third_cluster)
 8-element Vector{Int64}
 14
 15
