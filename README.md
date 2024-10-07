@@ -8,7 +8,7 @@ _A package for creating and deploying Julia computations on cloud-based clusters
 ## Target users
 
 _CloudClusters.jl_ targets users of the Julia programming language who want to take advantage of on-demand access to cutting-edge computing resources offered by IaaS providers to meet high-performance computing (HPC) requirements of applications of their interest.
-
+   
 ## Pre-requisites
 
 # Tutorial
@@ -16,7 +16,7 @@ _CloudClusters.jl_ targets users of the Julia programming language who want to t
 We assume that the authentication to the IaaS provider is correctly configured in the environment where the Julia REPL session or standalone program will execute. 
 In what follows, we teach how to create clusters and deploy computations on them using _Distributed.jl_ primitives.
 
-## How to create clusters (the simplest way)
+## How to create a cluster (the simplest way)
 
 _CloudClusters.jl_ offers the following six primitives, implemented as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained in the following paragraphs, with a simple example you can try to reproduce in a REPL session. 
 It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available in an accessible path.
@@ -53,9 +53,9 @@ The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AW
 
 The process of creating instances, until they are ready to be connected to the master process through worker processes instantiated in each of them via _Distributed.jl_, can be lengthy, depending on the provider.
 
-For each node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the _pids_ of the cluster nodes are 2, 3, 4, and 5.
+For each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the _pids_ of the cluster nodes are 2, 3, 4, and 5.
 
-```julia
+```julia-repl
 julia> workers(my_first_cluster)
 4-element Vector{Int64}
 2
@@ -63,6 +63,54 @@ julia> workers(my_first_cluster)
 4
 5
 ```
+
+## Running computations on the cluster
+
+The user may execute parallel computations on the cluster by using _Distributed.jl_ to communicate with cluster nodes from the master process and _MPI.jl_ to implement the parallel computation between cluster nodes. 
+
+## Multiple clusters
+
+The user can create as many cluster contracts as necessary, as well as as many clusters from them. For example, the following code creates a second cluster contract asking for a cluster of eight VM instances equipped with NVIDIA Turing GPUs with at least 16GB of memory and then create two clusters from it.
+
+```julia
+
+my_second_cluster_contract = @cluster(nodes => 8,
+                                      accelerator_count => @just(1),
+                                      accelerator_architecture => Turing,
+                                      accelerator_memory => @atleast(16G))
+
+@resolve my_second_cluster_contract
+
+my_second_cluster = @deploy my_second_cluster_contract
+my_third_cluster = @deploy my_second_cluster_contract
+```
+Now, there are three available clusters. The _pids_ of the last two ones may be inspected:
+
+```julia-repl
+julia> workers(my_second_cluster)
+8-element Vector{Int64}
+6
+7
+8
+9
+10
+11
+12
+13
+
+julia> workers(my_third_cluster)
+8-element Vector{Int64}
+14
+15
+16
+17
+18
+19
+20
+21
+```
+
+## Interrrupting and resuming a cluster
 
 The cluster may be interrupted through the ___@interrupt___ macro: 
 
@@ -76,6 +124,9 @@ After ___@interrupt___ completes, the VM instances of cluster nodes are paused/s
 ```
 It is important to notice that ___@interrupt___ finishes the worker processes across all cluster nodes. So, it does not automatically preserve the state of undergoing computations. The interruption of a cluster may be used with the only purpose to pause VM instances underying the cluster nodes. The __@resume___ operation creates a fresh set of worker processes, with different _pids_.
 
+
+## Terminating a cluster
+
 Finally, a cluster may be finished/terminated using the ___@terminate___ macro:
 
 ```julia
@@ -84,13 +135,7 @@ Finally, a cluster may be finished/terminated using the ___@terminate___ macro:
 
 
 
-## How to run computations on a cluster
-
-## How to run computations on multiple clusters
-
 ## How to reconnect to a non-terminated cluster
-
-## The non-macro interface
 
 ## Working with cluster contracts (the advanced way)
 
