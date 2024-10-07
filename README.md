@@ -18,19 +18,41 @@ In what follows, we teach how to create clusters and deploy computations on them
 
 ## How to create clusters (the simplest way)
 
-_CloudClusters.jl_ offers the following six primitives, implemented as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained in the following paragraphs, with a simple example that you can try to reproduce in a REPL session. For function (non-macro) versions of the primitives, visit the section [The non-macro interface](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#the-non-macro-interface).
+_CloudClusters.jl_ offers the following six primitives, implemented as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained in the following paragraphs, with a simple example you can try to reproduce in a REPL session. 
+It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available in an accessible path.
 
-### @cluster
+First, let us examine a simple scenario where a user wants to create a cluster comprising 4 ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. For that, the user must use the __@cluster__ macro, passing the number of nodes and instance type as arguments.
 
-### @resolve
+```julia
+using CloudClusters
+using PlatformAware
 
-### @deploy
+my_first_cluster_contract = @cluster  node_count => 4  node_machinetype => EC2Type_T3_xLarge
 
-### @terminate
+```
 
-### @interrupt
+The __@cluster__ macro will not instantiate the cluster yet. It will create a _cluster contract_, from which the user can create one or more clusters. The variable ```my_first_cluster_contract``` receives a _contract handle_. Handles are symbols comprising 15 randomly calculated lower- and upper-case alphabetic characters (e.g.,```:FXqElAnSeTEpQAm``` ). Since they are symbols, they are printable and may be used directly to refer to a cluster contract.
 
-### @resume
+A cluster contract must be resolved to be able to instantiate clusters from it. For that, the user needs to apply __@resolve__, as below:
+
+```julia
+@resolve my_first_cluster_contract
+```
+
+The __@resolve__ macro will trigger a resolution procedure to calculate which instance type provided by a supported IaaS provider satisfies the contract. For this simple contract, the response is explicitly specified in the exemplified contract, i.e., the ___t3.xlarge___ instance type offered by AWS EC2. For more advanced contract specifications, where cluster contract resolution shows its power, the reader will read the section [Working with cluster contracts (the advanced way)](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts-the-advanced-way).
+
+A cluster may be instantiated by using ___@deploy___:
+
+```julia
+my_first_cluster = @deploy my_first_cluster_contract
+```
+
+The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AWS EC2 instances, returning a cluster handle in the ```my_first_cluster``` variable. 
+
+The process of creating instances, until they are ready to be connected to the master process through worker processes instantiated in each of them via _Distributed.jl_, can be lengthy, depending on the provider.
+
+
+
 
 ## How to run computations on a cluster
 
