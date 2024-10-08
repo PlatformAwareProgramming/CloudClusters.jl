@@ -1,6 +1,6 @@
 # CloudClusters.jl
 
-_A package for creating and deploying Julia computations on cloud-based clusters on the infrastructure of IaaS providers it supports._
+_A package for creating, using, and managing the lifecycle of cloud-based clusters deployed at the infrastructure of IaaS providers._
 
 > [!NOTE]
 > _Currently, it only supports [EC2](https://aws.amazon.com/ec2/). Ask us about the progress with [GCP](https://cloud.google.com/) and [Azure](https://azure.microsoft.com/)._ Collaborators are wellcome.
@@ -104,7 +104,7 @@ my_second_cluster = @deploy my_second_cluster_contract
 my_third_cluster = @deploy my_second_cluster_contract
 ```
 
-In the above code, notice the advanced use of cluster contracts, by asking for instance types that satisfy a set of assumptions. At the time this tutoral was written, the AWS EC2 instance type that satisfy these assumptions is ___g4dn.xlarge___, equipped with NVIDIA Tesla T4 GPUs.
+In the above code, notice the advanced use of cluster contracts, by asking for instance types that satisfy a set of assumptions. At the time this tutorial was written, the AWS EC2 instance type that satisfies these assumptions is ___g4dn.xlarge___, equipped with NVIDIA Tesla T4 GPUs.
 
 Now, there are three available clusters. The _pids_ of the last two ones may be inspected:
 
@@ -134,20 +134,34 @@ julia> workers(my_third_cluster)
 
 The user may orchestrate all the deployed clusters to execute computations of their interest, independent of their provider. However, it is important to notice that _MPI.jl_ computations are restricted to be performed between the processes of the same cluster. Communication operations between the nodes of different clusters may still be performed through _Distributed.jl_, or using the master process as an intermediary. However, inter-cluster communication must be employed with care, only when strictly necessary and asynchronously, if possible, overlapping it with computations, due to the high communication overhead between clusters.
 
-## Interrrupting and resuming a cluster
+## Interrupting and resuming a cluster
 
 A cluster may be interrupted through the ___@interrupt___ macro: 
 
 ```julia
 @interrupt my_first_cluster
 ```
-After ___@interrupt___ completes, the VM instances of the cluster nodes are paused/stopped, and can be resumed/restarted through the ___@resume___ macro:
+The effect of ___@interrupt___ is pausing/stopping the VM instances of the cluster nodes. 
+
+An interrupted cluster can be put back to the running state through the ___@resume___ macro:
 
 ```julia
 @resume my_first_cluster
 ```
-It is important to notice that ___@interrupt___ kills the worker processes running at the cluster nodes, not preserving the state of undergoing computations in the cluster. The interruption of a cluster may be used to pause the cloud resources underlying the VM instances of the cluster nodes. In turn, the ___@resume___ operation creates a fresh set of worker processes, with different _pids_. So, it is user's responsibility to save the state of any undergoing computation in a cluster to be interrupted, to restart them after resuming. 
+The resuming operation creates a fresh set of worker processes, with new _pids_.
 
+> [!NOTE]
+> It is important to notice that ___@interrupt___ does not preserve the state of undergoing computations in the cluster, since it kills the worker processes running at the cluster nodes. The interruption of a cluster may be used to avoid the cost of cloud resources that are not currently being used. It is the user's responsibility to save the state of undergoing computations in a cluster to be interrupted and reload the state after resuming whenever necessary. 
+
+## Restarting processes
+
+A user can restart the processes at the cluster nodes by using the ___@restart___ macro: 
+
+```julia
+@restart my_first_cluster
+```
+
+The restart procedure kills all the current processes at the cluster nodes, losing their current state, and creates new processes, with new pids. 
 
 ## Terminating a cluster
 
@@ -157,19 +171,25 @@ Finally, a cluster may be finished/terminated using the ___@terminate___ macro:
 @terminate my_first_cluster
 ```
 
+After terminating, the cloud resources associated with the cluster are freed.
+
 ## How to reconnect to a non-terminated cluster
 
-If a cluster is not terminated in the execution of a standalone program or REPL session, it can be restarted by referring to its cluster handle in a call to the ___@restart___ macro. For example:
+If a cluster was not terminated in the execution of a standalone program or REPL session, the user may reconnect it by making a call to the ___@reconnect___ macro. For example:
 
 ```julia
-@restart :FXqElAnSeTEpQAm
+@reconnect :FXqElAnSeTEpQAm
 ```
 
-In the above code, ```:FXqElAnSeTEpQAm``` is the cluster_handle of a cluster not determined in a previous execution session. But how may the user discover the cluster handle of a non-terminated cluster? For that, the user may call the ___@clusters___ macro, which returns a list of non-terminated clusters in previous sessions that may be restarted:
+In the above code, ```:FXqElAnSeTEpQAm``` is the handle of a cluster not terminated in a previous execution session. But how may the user discover the cluster handle of a non-terminated cluster? After a crash, for example. For that, the user may call the ___@clusters___ macro, which returns a list of non-terminated clusters in previous sessions that may be reconnected:
 
 ```julia
-@clusters
+julia> @clusters
+[ Info: PeerWorkers FXqElAnSeTEpQAm, created at 2024-10-08T09:12:40.847 on PlatformAware.AmazonEC2
+1-element Vector{Any}:
+ Dict{Any, Any}(:handle => :FXqElAnSeTEpQAm, :provider => PlatformAware.AmazonEC2, :type => PeerWorkers, :timestamp => Dates.DateTime("2024-10-08T09:12:40.847"))
 ```
+
 
 
 ## Working with cluster contracts (the advanced way)
