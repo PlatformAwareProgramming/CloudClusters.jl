@@ -13,10 +13,14 @@ _CloudClusters.jl_ targets users of the Julia programming language who want to t
 
 # Tutorial
 
+In what follows, we present a tutorial on using _CloudClusters.jl_, divided into two parts: _basic use_ and _advanced use_. The tutorial on basic use will teach the reader how to create and manage the lifecycle of ___peer-workers___ clusters, i.e. clusters comprising a set of homogeneous VM instances deployed in the infrastructure of a given IaaS cloud provider. In turn, the tutorial on advanced use will provide a deeper discussion about _cluster contracts_ and how to deploy ___manager-workers___ clusters, comprising a manager node and a set of homogenous worker nodes. Manager-workers clusters make it possible for the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations.
+
+# Basic use 
+
 We assume that the authentication to the IaaS provider is correctly configured in the environment where the Julia REPL session or standalone program will execute. 
 In what follows, we teach how to create clusters and deploy computations on them using _Distributed.jl_ primitives.
 
-## How to create a cluster (basic use)
+## How to create a cluster 
 
 _CloudClusters.jl_ offers the following six primitives, implemented as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained in the following paragraphs, with a simple example you can try to reproduce in a REPL session. 
 It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available in an accessible path.
@@ -190,9 +194,9 @@ julia> @clusters
  Dict{Any, Any}(:handle => :FXqElAnSeTEpQAm, :provider => PlatformAware.AmazonEC2, :type => PeerWorkers, :timestamp => Dates.DateTime("2024-10-08T09:12:40.847"))
 ```
 
+## Advanced Use
 
-
-## Working with cluster contracts (advanced use)
+### Working with cluster contracts 
 
 As shown in the previous examples of using the ___@cluster___ macro, _CloudClusters.jl_ supports _cluster contracts_ to specify _assumptions_ about _features_ of clusters, with special attention to the types of VM instances comprising cluster nodes. 
 
@@ -202,7 +206,7 @@ In the case of ```my_first_cluster_contract```, the user uses the assumption par
 
 On the other hand, ```my_second_cluster_contract``` employs an indirect approach, demonstrating the ability of the resolution procedure to find the VM instance type from a set of abstract assumptions. They are specified using the assumptions parameters __accelerator_count__, __accelerator_architecture__, and __accelerator_memory__, asking for cluster nodes with a single GPU of NVIDIA Turing architecture with at least 16GB of memory. Under these assumptions, the call to ___@resolve___ returns the __g4dn.xlarge__ instance type of AWS EC2.
 
-### List of supported assumption parameters
+#### List of supported assumption parameters
 
 The supported assumption parameters currently supported by _CloudClusters.jl_, with their respective base platform types, are listed below.
 
@@ -233,3 +237,5 @@ The supported assumption parameters currently supported by _CloudClusters.jl_, w
 * __placement_group__::```String```
 * __security_group_id__::```String```
 
+
+### Working with cluster types (Peer-Workers vs Manager-Workers clusters)
