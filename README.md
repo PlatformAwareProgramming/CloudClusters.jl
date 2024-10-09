@@ -316,12 +316,12 @@ The user may use "dot notation" to specify different assumptions for manager and
 my_second_cluster_contract = @cluster(cluster_type => ManageWorkers,
                                       node_count => 8,
                                       manager.node_machinetype => EC2Type_T3_xLarge,
-                                      worker.accelerator_count => @just(1),
-                                      worker.accelerator_architecture => Turing,
-                                      worker.accelerator_memory => @atleast(16G))
+                                      worker.accelerator_count => @just(8),
+                                      worker.accelerator_architecture => Ada,   
+                                      worker.accelerator_memory => @atleast(512G))
 ```
 
-This contract specifies that the manager node must be a ___t3.xlarge___ virtual machine, while the worker nodes will have a single NVIDIA GPU of Turing architecture and at least 16GB memory.
+This contract specifies that the manager node must be a ___t3.xlarge___ virtual machine, while the worker nodes will have eight NVIDIA GPUs of Ada architecture and at least 512GB of memory.
 
 The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, using the ```@everywhere``` primitive of _Distributed.jl_. 
 
