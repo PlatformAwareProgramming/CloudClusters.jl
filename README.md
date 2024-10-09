@@ -194,9 +194,12 @@ julia> @clusters
 
 ## Working with cluster contracts (advanced use)
 
-As shown in the previous examples of using the ___@cluster___ macro, _CloudClusters.jl_ supports _cluster contracts_ to specify _assumptions_ about _features_ of clusters, with special attention to the types of VM instances comprising cluster nodes. Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a _platform type_. A predefined set of assumption parameters is supported, each with a _name_ and a _base platform type_. They provide a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs.
+As shown in the previous examples of using the ___@cluster___ macro, _CloudClusters.jl_ supports _cluster contracts_ to specify _assumptions_ about _features_ of clusters, with special attention to the types of VM instances comprising cluster nodes. 
 
+Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a _platform type_. A predefined set of assumption parameters is supported, each with a _name_ and a _base platform type_. They provide a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs.
 
-In the case of ```my_first_cluster_contract```, it use the assumption parameters ___cluster_nodes__ and ___nodes_machinetype__ to specify that the cluster must have four nodes and the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, which is offered by the AWS EC2 provider.
+In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___cluster_nodes___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and less abstract one, where the resolution procedure, triggered by a call to __@resolve__ , will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract. 
+
+On the other hand, ```my_first_cluster_contract``` is an indirect approach, demonstrating the ability of the resolution procedure to find the VM instance type from a set of abstract assumptions specified using the parameters __accelerator_count__, __accelerator_architecture__, and __accelerator_memory__ to ask for cluster nodees with a single GPU of NVIDIA Turing architecture with at least 16GB of memory.
 
 
