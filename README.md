@@ -206,6 +206,10 @@ In the case of ```my_first_cluster_contract```, the user uses the assumption par
 
 On the other hand, ```my_second_cluster_contract``` employs an indirect approach, demonstrating the ability of the resolution procedure to find the VM instance type from a set of abstract assumptions. They are specified using the assumptions parameters __accelerator_count__, __accelerator_architecture__, and __accelerator_memory__, asking for cluster nodes with a single GPU of NVIDIA Turing architecture with at least 16GB of memory. Under these assumptions, the call to ___@resolve___ returns the __g4dn.xlarge__ instance type of AWS EC2.
 
+#### Querying contracts
+
+The user can use the ___@select___ macro to query which instance types satisfy a contract. 
+
 #### List of supported assumption parameters
 
 The supported assumption parameters currently supported by _CloudClusters.jl_, with their respective base platform types, are listed below.
