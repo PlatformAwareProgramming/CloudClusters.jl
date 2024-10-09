@@ -93,7 +93,7 @@ The user can create as many cluster contracts as necessary, as well as as many c
 
 ```julia
 
-my_second_cluster_contract = @cluster(nodes_count => 8,
+my_second_cluster_contract = @cluster(node_count => 8,
                                       accelerator_count => @just(1),
                                       accelerator_architecture => Turing,
                                       accelerator_memory => @atleast(16G))
@@ -150,8 +150,8 @@ An interrupted cluster can be put back to the running state through the ___@resu
 ```
 The resuming operation creates a fresh set of worker processes, with new _pids_.
 
-> [!NOTE]
-> It is important to notice that ___@interrupt___ does not preserve the state of undergoing computations in the cluster, since it kills the worker processes running at the cluster nodes. The interruption of a cluster may be used to avoid the cost of cloud resources that are not currently being used. It is the user's responsibility to save the state of undergoing computations in a cluster to be interrupted and reload the state after resuming whenever necessary. 
+> [!WARNING]
+> ___@interrupt___ does not preserve the state of undergoing computations in the cluster, since it kills the worker processes running at the cluster nodes. The interruption of a cluster may be used to avoid the cost of cloud resources that are not currently being used. It is the user's responsibility to save the state of undergoing computations in a cluster to be interrupted and reload the state after resuming whenever necessary. 
 
 ## Restarting processes
 
@@ -196,10 +196,40 @@ julia> @clusters
 
 As shown in the previous examples of using the ___@cluster___ macro, _CloudClusters.jl_ supports _cluster contracts_ to specify _assumptions_ about _features_ of clusters, with special attention to the types of VM instances comprising cluster nodes. 
 
-Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a _platform type_. A predefined set of assumption parameters is supported, each with a _name_ and a _base platform type_. They provide a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs.
+Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a _platform type_. A predefined set of assumption parameters is supported, each with a _name_ and a _base platform type_. They are listed [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#list-of-supported-assumption-parameters), They provide a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs.
 
-In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___cluster_nodes___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and less abstract one, where the resolution procedure, triggered by a call to __@resolve__ , will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract.
+In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___node_count___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and less abstract one, where the resolution procedure, triggered by a call to __@resolve__ , will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract.
 
 On the other hand, ```my_second_cluster_contract``` employs an indirect approach, demonstrating the ability of the resolution procedure to find the VM instance type from a set of abstract assumptions. They are specified using the assumptions parameters __accelerator_count__, __accelerator_architecture__, and __accelerator_memory__, asking for cluster nodes with a single GPU of NVIDIA Turing architecture with at least 16GB of memory. Under these assumptions, the call to ___@resolve___ returns the __g4dn.xlarge__ instance type of AWS EC2.
 
+### List of supported assumption parameters
+
+The supported assumption parameters currently supported by _CloudClusters.jl_, with their respective base platform types, are listed below.
+
+* __cluster_type__::```Cluster```
+* __node_count__::```Integer```
+* __node_process_count__::```Integer```
+* __node_provider__::```CloudProvider```
+* __cluster_locale__::```Locale```
+* __node_machinetype__::```InstanceType```
+* __node_memory_size__::```@atleast 0```
+* __node_ecu_count__::```@atleast 1```
+* __node_vcpus_unit__::```@atleast 1```
+* __accelerator_count__::```@atleast 0```
+* __accelerator_memory__::```@atleast 0```
+* __accelerator_type__::```AcceleratorType```
+* __accelerator_arch__::```AcceleratorArchitecture```
+* __accelerator__::```AcceleratorModel```
+* __processor__::```ProcessorModel```
+* __processor_manufacturer__::```Manufacturer```
+* __processor_microarchitecture__::```ProcessorArchitecture```
+* __storage_type__::```StorageType```
+* __storage_size__::```@atleast 0```
+* __network_performance__::```@atleast 0```
+* __image_id__::```String```
+* __user__::```String```
+* __key_name__::```String```
+* __subnet_id__::```String```
+* __placement_group__::```String```
+* __security_group_id__::```String```
 
