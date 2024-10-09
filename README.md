@@ -239,3 +239,65 @@ The supported assumption parameters currently supported by _CloudClusters.jl_, w
 
 
 ### Working with cluster types (Peer-Workers vs Manager-Workers clusters)
+
+Manager-Workers clusters comprise a _manager node_ and a homogenous set of _worker nodes_. The instance type of the manager node may differ from the instance type of the worker nodes. The host program is called the _driver process_, which launches the so-called _entry process_ in the manager node of the cluster. In turn, the entry process launches the _worker processes_ in the worker nodes, using _MPIClusterManagers.jl_. 
+
+The worker processes are responsible for performing the computation, while the entry process is responsible for the communication between the drive process and the worker processes. This is necessary to make manager-worker clusters able to offer users the ability to program using MPI (Message Passing Interface) to implement tightly coupled parallel computations involving the worker processes, using the third-party _MPI.jl_ package. 
+
+> [!IMPORTANT]
+> Manager-Workers are not natively supported by Julia, because _Distributed.jl_ does not support that worker processes create new processes, as shown below:
+> ```julia
+> julia>addprocs(1)
+> 1-element Vector{Int64}:
+> 2
+> julia> @fetchfrom 2 addprocs(1)
+> ERROR: On worker 2:
+> Only process 1 can add or remove workers
+> ```
+> The _CloudClusters.jl_ developers have developed a modified version of _Distributed.jl_ that remove this limitation, making possible to create hiearchies of Julia processes. This work is reported in the following paper:
+>
+> F. H. de Carvalho Junior and T. Carneiro. 2023. _Towards multicluster computations with Julia_. In XXV Symposium on High-Performance Computational Systems (SSCAD’2024) (São Carlos, SP). SBC, Porto Alegre, Brazil.
+
+To create a manager-workers cluster, the user may use the __cluster_type__ parameter. Let us modify the ```my_first_cluster_contract``` to create manager-workers cluster:
+
+```julia
+my_first_cluster_contract = @cluster(cluster_type => ManageWorkers,
+                                     node_count => 4,
+                                     node_machinetype => EC2Type_T3_xLarge)       
+```
+
+Now, the __node_count__ parameter specifies the number of worker nodes. So, for a cluster deployed using ```my_first_cluster_contract```, five VM instances will be created, including the manager node.
+
+The user may use "dot notation" to specify different assumptions for manager and worker nodes. For example:
+
+```julia
+my_second_cluster_contract = @cluster(cluster_type => ManageWorkers,
+                                      node_count => 8,
+                                      manager.node_machinetype => EC2Type_T3_xLarge,
+                                      worker.accelerator_count => @just(1),
+                                      worker.accelerator_architecture => Turing,
+                                      worker.accelerator_memory => @atleast(16G))
+```
+
+This contract specifies that the manager node must be a ___t3.xlarge___ virtual machine, while the worker nodes will have a single NVIDIA GPU of Turing architecture and at least 16GB memory.
+
+The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, using the ```@everywhere``` primitive of _Distributed.jl_. 
+
+```julia
+my_first_cluster = @deploy my_first_cluster_contract
+
+@everywhere workers(my_first_cluster) begin
+   @eval using MPI
+   MPI.Init()
+   rank = MPI.Comm_rank(MPI.COMM_WORLD)
+   size = MPI.Comm_size(MPI.COMM_WORLD)
+   @info "I am $rank among $size processes"
+   root_rank = 0
+   rank_sum = MPI.Reduce(rank, (x,y) -> x + y, root_rank, MPI.COMM_WORLD)
+end
+
+result = @fetchfrom ranks(my_first_cluster0)[0] rank_sum
+@info "The sum of ranks in the cluster is $result"
+```
+
+The parallel code calculates the sum of the ranks of the processes using the _Reduce_ collective operation of _MPI.jl_, and stores the results in the global variable _rank_sum_ of the root process, with rank 0. Then, this value is fetched by the program and assigned to the _result_ variable using ```@fetchfrom```. For that, the ```ranks``` function is used to discover the _pid_ of the root process.
