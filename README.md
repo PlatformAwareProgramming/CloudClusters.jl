@@ -16,7 +16,7 @@ _CloudClusters.jl_ targets users of the Julia programming language who want to t
 We assume that the authentication to the IaaS provider is correctly configured in the environment where the Julia REPL session or standalone program will execute. 
 In what follows, we teach how to create clusters and deploy computations on them using _Distributed.jl_ primitives.
 
-## How to create a cluster (the simplest way)
+## How to create a cluster (basic use)
 
 _CloudClusters.jl_ offers the following six primitives, implemented as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained in the following paragraphs, with a simple example you can try to reproduce in a REPL session. 
 It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available in an accessible path.
@@ -192,7 +192,11 @@ julia> @clusters
 
 
 
-## Working with cluster contracts (the advanced way)
+## Working with cluster contracts (advanced use)
 
+As shown in the previous examples of using the ___@cluster___ macro, _CloudClusters.jl_ supports _cluster contracts_ to specify _assumptions_ about _features_ of clusters, with special attention to the types of VM instances comprising cluster nodes. Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a _platform type_. A predefined set of assumption parameters is supported, each with a _name_ and a _base platform type_. They provide a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs.
+
+
+In the case of ```my_first_cluster_contract```, it use the assumption parameters ___cluster_nodes__ and ___nodes_machinetype__ to specify that the cluster must have four nodes and the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, which is offered by the AWS EC2 provider.
 
 
