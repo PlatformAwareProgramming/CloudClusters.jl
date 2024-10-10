@@ -57,6 +57,26 @@ The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AW
 
 The process of creating instances, until they are ready to be connected to the master process through worker processes instantiated in each of them via _Distributed.jl_, can be lengthy, depending on the provider.
 
+Optionally, the ___@deploy__ macro accepts a set of configuration parameters that depends on the IaaS provider selected by __@resolve__. For AWS EC2, the possible configuration parameters are:
+* __image_id__::```String```
+* __user__::```String```
+* __key_name__::```String```
+* __subnet_id__::```String```
+* __placement_group__::```String```
+* __security_group_id__::```String```
+
+An example of configuration parameters is:
+ 
+```julia
+my_first_cluster = @deploy(my_first_cluster,
+                           image_id => "",
+                           user => "ubuntu",
+                           key_name => "mykey")
+```
+
+If not informed, default configuration parameters are read from a _CCconfig.EC2.toml_ file, in the case of the AWS EC2 provider. The name and location of the default configuration file depends on the provider.
+
+
 For each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the _pids_ of the processes at the cluster nodes are 2, 3, 4, and 5. 
 
 ```julia-repl
@@ -250,34 +270,34 @@ julia> @resolve cc
 
 #### List of supported assumption parameters
 
-The supported assumption parameters currently supported by _CloudClusters.jl_, with their respective base platform types, are listed below.
+The supported assumption parameters currently supported by _CloudClusters.jl_, with their respective base platform types, are listed below. They are divided in three groups: _cluster parameters_ and _instance parameters_. 
 
-* __cluster_type__::```Cluster```
-* __node_count__::```Integer```
-* __node_process_count__::```Integer```
-* __node_provider__::```CloudProvider```
-* __cluster_locale__::```Locale```
-* __node_machinetype__::```InstanceType```
-* __node_memory_size__::```@atleast 0```
-* __node_ecu_count__::```@atleast 1```
-* __node_vcpus_unit__::```@atleast 1```
-* __accelerator_count__::```@atleast 0```
-* __accelerator_memory__::```@atleast 0```
-* __accelerator_type__::```AcceleratorType```
-* __accelerator_arch__::```AcceleratorArchitecture```
-* __accelerator__::```AcceleratorModel```
-* __processor__::```ProcessorModel```
-* __processor_manufacturer__::```Manufacturer```
-* __processor_microarchitecture__::```ProcessorArchitecture```
-* __storage_type__::```StorageType```
-* __storage_size__::```@atleast 0```
-* __network_performance__::```@atleast 0```
-* __image_id__::```String```
-* __user__::```String```
-* __key_name__::```String```
-* __subnet_id__::```String```
-* __placement_group__::```String```
-* __security_group_id__::```String```
+
+* ___Cluster parameters___ specify features of the cluster:
+   * __cluster_type__::```Cluster```, denoting the cluster type: ManagerWorkers or PeerWorkers;
+   * __node_count__::```Integer```, denoting the number of cluster nodes;
+   * __node_process_count__::```Integer```, denoting the number of Julia processes (MPI ranks) per node.
+
+* ___Instance parameters___ specify assumptions that will guide the choice of VM instance types undetlying cluster nodes:
+   * __node_provider__::```CloudProvider```
+   * __cluster_locale__::```Locale```
+   * __node_machinetype__::```InstanceType```
+   * __node_memory_size__::```@atleast 0```
+   * __node_ecu_count__::```@atleast 1```
+   * __node_vcpus_unit__::```@atleast 1```
+   * __accelerator_count__::```@atleast 0```
+   * __accelerator_memory__::```@atleast 0```
+   * __accelerator_type__::```AcceleratorType```
+   * __accelerator_arch__::```AcceleratorArchitecture```
+   * __accelerator__::```AcceleratorModel```
+   * __processor__::```ProcessorModel```
+   * __processor_manufacturer__::```Manufacturer```
+   * __processor_microarchitecture__::```ProcessorArchitecture```
+   * __storage_type__::```StorageType```
+   * __storage_size__::```@atleast 0```
+   * __network_performance__::```@atleast 0```
+      
+
 
 
 ### Working with cluster types (Peer-Workers vs Manager-Workers clusters)
