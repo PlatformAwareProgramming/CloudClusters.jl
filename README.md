@@ -1,9 +1,12 @@
+> [!NOTE]
+> This README is still under construction. Please ask the developers if you have any questions.
+
 # CloudClusters.jl
 
 _A package for creating, using, and managing the lifecycle of cloud-based clusters deployed at the infrastructure of IaaS providers._
 
 > [!NOTE]
-> _Currently, it only supports [EC2](https://aws.amazon.com/ec2/). Ask us about the progress with [GCP](https://cloud.google.com/) and [Azure](https://azure.microsoft.com/)._ Collaborators are wellcome.
+> _Currently, it only supports [EC2](https://aws.amazon.com/ec2/). You can ask us about the progress with [GCP](https://cloud.google.com/) and [Azure](https://azure.microsoft.com/)._ Collaborators are welcome.
 
 ## Target users
 
@@ -11,9 +14,12 @@ _CloudClusters.jl_ targets users of the Julia programming language who want to t
    
 ## Pre-requisites
 
+> [!NOTE]
+> UNDER CONSTRUCTION
+
 # Tutorial
 
-In what follows, we present a tutorial on using _CloudClusters.jl_, divided into two parts: _basic use_ and _advanced use_. The tutorial on basic use will teach the reader how to create and manage the lifecycle of ___peer-workers___ clusters, i.e. clusters comprising a set of homogeneous VM instances deployed in the infrastructure of a given IaaS cloud provider. In turn, the tutorial on advanced use will provide a deeper discussion about _cluster contracts_ and how to deploy ___manager-workers___ clusters, comprising a manager node and a set of homogenous worker nodes. Manager-workers clusters make it possible for the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations.
+In what follows, we show a tutorial on using _CloudClusters.jl_, divided into two parts: _basic use_ and _advanced use_. The tutorial on basic use will teach the reader how to create and manage the lifecycle of ___peer-workers___ clusters, i.e. clusters comprising a set of homogeneous VM instances deployed in the infrastructure of a given IaaS cloud provider. In turn, the tutorial on advanced use will provide a deeper discussion about _cluster contracts_ and how to deploy ___manager-workers___ clusters, comprising a manager node and a set of homogenous worker nodes. Manager-workers clusters allow the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations.
 
 # Basic use 
 
@@ -23,9 +29,9 @@ In what follows, we teach how to create clusters and deploy computations on them
 ## How to create a cluster 
 
 _CloudClusters.jl_ offers the following six primitives, implemented as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained in the following paragraphs, with a simple example you can try to reproduce in a REPL session. 
-It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available in an accessible path.
+It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available on an accessible path.
 
-First, let us examine a simple scenario where a user wants to create a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. For that, the user must use the __@cluster__ macro, passing the number of nodes and instance type as arguments.
+First, let us examine a simple scenario where a user wants to create a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. To accomplish this, the user must use the __@cluster__ macro, passing the number of nodes and instance type as arguments.
 
 ```julia
 using CloudClusters
@@ -56,7 +62,7 @@ my_first_cluster = @deploy my_first_cluster
 The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AWS EC2 instances, returning a cluster handle in the ```my_first_cluster``` variable. 
 
 >[!WARNING]
->The process of creating instances, until they are ready to be connected to the master process through worker processes instantiated in each of them via _Distributed.jl_, can be lengthy, depending on the provider.
+>The process of creating VM instances (cluster nodes) until they are ready to be connected to the processes via _Distributed.jl_, can be lengthy, depending on the provider.
 
 After __@deploy__, for each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the user fetches the _pids_ of the processes at the cluster nodes. 
 
@@ -69,7 +75,7 @@ julia> workers(my_first_cluster)
 5
 ```
 
-Optionally, the ___@deploy__ macro accepts a set of configuration parameters. An example of using them parameters is:
+Optionally, the ___@deploy__ macro accepts a set of configuration parameters. An example of using them is shown below:
  
 ```julia
 my_first_cluster = @deploy(my_first_cluster,
@@ -93,7 +99,7 @@ The following configuration parameters apply to worker nodes of master-worker cl
 * __threadlevel__::```String```
 * __mpiflags__::```String```
 
-The last set of configuration parameters are dependent on the IaaS provider selected by __@resolve__. For AWS EC2, they are:
+The last set of configuration parameters depends on the IaaS provider selected through __@resolve__. For AWS EC2, they are:
 * __imageid__::```String```
 * __subnet_id__::```String```
 * __placement_group__::```String```
@@ -101,7 +107,7 @@ The last set of configuration parameters are dependent on the IaaS provider sele
 
 
 
-If not informed, default configuration parameters that are independent on an IaaS provider are read from a _CCconfig.toml_ file, while the AWS EC2 dependent ones are read from _CCconfig.EC2.toml_. The name and location of provider-specific configuration files depend on the provider.
+If not informed, default configuration parameters independent of an IaaS provider are read from a _CCconfig.toml_ file, while the AWS EC2 dependent ones are read from _CCconfig.EC2.toml_. The name and location of provider-specific configuration files depend on the provider.
 
 
 
@@ -131,7 +137,7 @@ The parallel code calculates the sum of the ranks of the processes using the _Re
 
 ## Multiple clusters
 
-The user can create as many cluster contracts as necessary, as well as as many clusters from them. For example, the following code creates a second cluster contract, named ```my_second_cluster_contract```, asking for a cluster of eight VM instances equipped with GPUs of NVIDIA Turing architecture having at least 16GB of memory. Then, it creates two clusters from ```my_second_cluster_contract```. 
+The users can freely create cluster contracts they need, and more than a single cluster from each contract. For example, the following code creates a second cluster contract, named ```my_second_cluster_contract```, asking for a cluster of eight VM instances equipped with GPUs of NVIDIA Turing architecture having at least 16GB of memory. Then, it creates two clusters from ```my_second_cluster_contract```. 
 
 ```julia
 
@@ -174,7 +180,7 @@ julia> workers(my_third_cluster)
 21
 ```
 
-The user may orchestrate all the deployed clusters to execute computations of their interest, independent of their provider. However, it is important to notice that _MPI.jl_ computations are restricted to be performed between the processes of the same cluster. Communication operations between the nodes of different clusters may still be performed through _Distributed.jl_, or using the master process as an intermediary. However, inter-cluster communication must be employed with care, only when strictly necessary and asynchronously, if possible, overlapping it with computations, due to the high communication overhead between clusters.
+The user may orchestrate all the deployed clusters to execute computations of their interest, independent of their provider. However, it is important to note that _MPI.jl_ computations must be performed between the processes of the same cluster. Communication operations between the nodes of different clusters may still be performed through _Distributed.jl_, or using the master process as an intermediary. However, inter-cluster communication must be employed with care, only when strictly necessary and asynchronously, if possible, overlapping it with computations, due to the high communication overhead between clusters.
 
 ## Interrupting and resuming a cluster
 
@@ -192,8 +198,8 @@ An interrupted cluster can be put back to the running state through the ___@resu
 ```
 The resuming operation creates a fresh set of worker processes, with new _pids_.
 
-> [!WARNING]
-> ___@interrupt___ does not preserve the state of undergoing computations in the cluster, since it kills the worker processes running at the cluster nodes. The interruption of a cluster may be used to avoid the cost of cloud resources that are not currently being used. It is the user's responsibility to save the state of undergoing computations in a cluster to be interrupted and reload the state after resuming whenever necessary. 
+> [!CAUTION]
+> ___@interrupt___ does not preserve the state of undergoing computations in the cluster, since it kills the worker processes running at the cluster nodes. The interruption of a cluster may be used to avoid the cost of cloud resources that are not currently being used. The user is responsible for saving the state of undergoing computations in a cluster to be interrupted and reloading the state after resuming whenever necessary. 
 
 ## Restarting processes
 
@@ -242,7 +248,7 @@ Cluster contracts are a set of key-value pairs ```k => v``` called _assumption p
 
 In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___node_count___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and less abstract one, where the resolution procedure, triggered by a call to __@resolve__ , will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract.
 
-On the other hand, ```my_second_cluster_contract``` employs an indirect approach, demonstrating the ability of the resolution procedure to find the VM instance type from a set of abstract assumptions. They are specified using the assumptions parameters __accelerator_count__, __accelerator_architecture__, and __accelerator_memory__, asking for cluster nodes with eight GPU of NVIDIA Ada Lovelace architecture and at least 512GB of memory. Under these assumptions, the call to ___@resolve___ returns the __g6.48xlarge__ instance type of AWS EC2.
+On the other hand, ```my_second_cluster_contract``` employs an indirect approach, demonstrating the ability of the resolution procedure to find the VM instance type from a set of abstract assumptions. They are specified using the assumptions parameters __accelerator_count__, __accelerator_architecture__, and __accelerator_memory__, asking for cluster nodes with eight GPUs of NVIDIA Ada Lovelace architecture and at least 512GB of memory. Under these assumptions, the call to ___@resolve___ returns the __g6.48xlarge__ instance type of AWS EC2.
 
 #### Querying contracts
 
@@ -288,7 +294,7 @@ julia> @resolve cc
 
 #### List of supported assumption parameters
 
-The supported assumption parameters currently supported by _CloudClusters.jl_, with their respective base platform types, are listed below. They are divided in three groups: _cluster parameters_ and _instance parameters_. 
+The supported assumption parameters currently supported by _CloudClusters.jl_, with their respective base platform types, are listed below. They are divided into three groups: _cluster parameters_ and _instance parameters_. 
 
 
 * ___Cluster parameters___ specify features of the cluster:
@@ -296,7 +302,7 @@ The supported assumption parameters currently supported by _CloudClusters.jl_, w
    * __node_count__::```Integer```, denoting the number of cluster nodes;
    * __node_process_count__::```Integer```, denoting the number of Julia processes (MPI ranks) per node.
 
-* ___Instance parameters___ specify assumptions that will guide the choice of VM instance types undetlying cluster nodes:
+* ___Instance parameters___ specify assumptions that will guide the choice of VM instance types underlying cluster nodes:
    * __node_provider__::```CloudProvider```
    * __cluster_locale__::```Locale```
    * __node_machinetype__::```InstanceType```
@@ -322,7 +328,7 @@ The supported assumption parameters currently supported by _CloudClusters.jl_, w
 
 Manager-Workers clusters comprise a _manager node_ and a homogenous set of _worker nodes_. The instance type of the manager node may differ from the instance type of the worker nodes. The host program is called the _driver process_, which launches the so-called _entry process_ in the manager node of the cluster. In turn, the entry process launches the _worker processes_ in the worker nodes, using _MPIClusterManagers.jl_. 
 
-The worker processes are responsible for performing the computation, while the entry process is responsible for the communication between the drive process and the worker processes. This is necessary to make manager-worker clusters able to offer users the ability to program using MPI (Message Passing Interface) to implement tightly coupled parallel computations involving the worker processes, using the third-party _MPI.jl_ package. 
+The worker processes perform the computation, while the entry process is responsible for communication between the driver and the worker processes. This is necessary to enable manager-worker clusters to offer users the ability to program using MPI (Message Passing Interface) to implement tightly coupled parallel computations involving the worker processes, using the third-party _MPI.jl_ package. 
 
 > [!IMPORTANT]
 > Manager-Workers are not natively supported by Julia, because _Distributed.jl_ does not support that worker processes create new processes, as shown below:
@@ -338,7 +344,7 @@ The worker processes are responsible for performing the computation, while the e
 >
 > F. H. de Carvalho Junior and T. Carneiro. 2023. _Towards multicluster computations with Julia_. In XXV Symposium on High-Performance Computational Systems (SSCAD’2024) (São Carlos, SP). SBC, Porto Alegre, Brazil.
 
-To create a manager-workers cluster, the user may use the __cluster_type__ parameter. Let us modify the ```my_first_cluster_contract``` to create manager-workers cluster:
+The user may use the __cluster_type__ parameter to command the creation of a manager-workers cluster. Let us modify the ```my_first_cluster_contract``` to create a manager-workers cluster instead of a peer-workers one (default):
 
 ```julia
 my_first_cluster_contract = @cluster(cluster_type => ManageWorkers,
@@ -346,7 +352,7 @@ my_first_cluster_contract = @cluster(cluster_type => ManageWorkers,
                                      node_machinetype => EC2Type_T3_xLarge)       
 ```
 
-Now, the __node_count__ parameter specifies the number of worker nodes. So, for a cluster deployed using ```my_first_cluster_contract```, five VM instances will be created, including the manager node.
+In this case, the __node_count__ parameter specifies the number of worker nodes. So, for a cluster deployed using ```my_first_cluster_contract```, five VM instances will be created, including the manager node.
 
 The user may use "dot notation" to specify different assumptions for manager and worker nodes. For example:
 
