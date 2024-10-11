@@ -55,29 +55,10 @@ my_first_cluster = @deploy my_first_cluster
 
 The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AWS EC2 instances, returning a cluster handle in the ```my_first_cluster``` variable. 
 
-The process of creating instances, until they are ready to be connected to the master process through worker processes instantiated in each of them via _Distributed.jl_, can be lengthy, depending on the provider.
+>[!WARNING]
+>The process of creating instances, until they are ready to be connected to the master process through worker processes instantiated in each of them via _Distributed.jl_, can be lengthy, depending on the provider.
 
-Optionally, the ___@deploy__ macro accepts a set of configuration parameters that depends on the IaaS provider selected by __@resolve__. For AWS EC2, the possible configuration parameters are:
-* __image_id__::```String```
-* __user__::```String```
-* __key_name__::```String```
-* __subnet_id__::```String```
-* __placement_group__::```String```
-* __security_group_id__::```String```
-
-An example of configuration parameters is:
- 
-```julia
-my_first_cluster = @deploy(my_first_cluster,
-                           image_id => "",
-                           user => "ubuntu",
-                           key_name => "mykey")
-```
-
-If not informed, default configuration parameters are read from a _CCconfig.EC2.toml_ file, in the case of the AWS EC2 provider. The name and location of the default configuration file depends on the provider.
-
-
-For each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the _pids_ of the processes at the cluster nodes are 2, 3, 4, and 5. 
+After __@deploy__, for each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the user fetches the _pids_ of the processes at the cluster nodes. 
 
 ```julia-repl
 julia> workers(my_first_cluster)
@@ -87,6 +68,43 @@ julia> workers(my_first_cluster)
 4
 5
 ```
+
+Optionally, the ___@deploy__ macro accepts a set of configuration parameters. An example of using them parameters is:
+ 
+```julia
+my_first_cluster = @deploy(my_first_cluster,
+                           image_id => "ami-07f6c5b6de73ce7ae",
+                           user => "ubuntu",
+                           keyname => "mykey")
+```
+
+The following configuration parameters set up the SSH connections to peer nodes of peer-workers clusters and the master node of master-worker clusters:
+* __user__::```String```
+* __keyname__::```String```
+* __sshflags__::```String```
+* __tunneled__::```Bool```
+
+The following configuration parameters apply to cluster nodes of any cluster type:
+* __exename__::```String```
+* __exeflags__::```String```
+* __directory__::```String```
+
+The following configuration parameters apply to worker nodes of master-worker clusters:
+* __threadlevel__::```String```
+* __mpiflags__::```String```
+
+The last set of configuration parameters are dependent on the IaaS provider selected by __@resolve__. For AWS EC2, they are:
+* __imageid__::```String```
+* __subnet_id__::```String```
+* __placement_group__::```String```
+* __security_group_id__::```String```
+
+
+
+If not informed, default configuration parameters that are independent on an IaaS provider are read from a _CCconfig.toml_ file, while the AWS EC2 dependent ones are read from _CCconfig.EC2.toml_. The name and location of provider-specific configuration files depend on the provider.
+
+
+
 
 ## Running computations on the cluster
 
