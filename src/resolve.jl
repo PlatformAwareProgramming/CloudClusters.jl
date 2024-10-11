@@ -15,23 +15,28 @@ function cluster_resolve(_::Type{<:ManagerWorkers}, cluster_features, contract_h
     manager_features = Dict{Symbol,Any}(get(cluster_features, :manager_features, cluster_features))
     worker_features = Dict{Symbol,Any}(get(cluster_features, :worker_features, cluster_features))
 
-    manager_features[:node_provider] = worker_features[:node_provider] = cluster_features[:node_provider]
+    if haskey(cluster_features, :node_provider) 
+       manager_features[:node_provider] = worker_features[:node_provider] = cluster_features[:node_provider]
+    end
 
-    @info "MANAGER: $manager_features"
-    @info "WORKER: $manager_features"
+#    @info "MANAGER: $manager_features"
+#    @info "WORKER: $manager_features"
 
-    instance_type_master = call_resolve(manager_features)
-    instance_type_worker = call_resolve(worker_features)
-    
+    (instance_type_master, node_provider) = call_resolve(manager_features)
+    (instance_type_worker, node_provider) = call_resolve(worker_features)
+
+    manager_features[:node_provider] = worker_features[:node_provider] = cluster_features[:node_provider] = node_provider
+
     cluster_contract_resolved[contract_handle] = (instance_type_master, instance_type_worker)
 
-    :master_instance_type => instance_type_master, 
-    :worker_instance_type => instance_type_worker
+    :master_instance_type => instance_type_master, :worker_instance_type => instance_type_worker
 end
 
 function cluster_resolve(_::Type{<:PeerWorkers}, cluster_features, contract_handle)
+    
+    (instance_type, node_provider) = call_resolve(cluster_features)
 
-    instance_type = call_resolve(cluster_features)
+    cluster_features[:node_provider] = node_provider
 
     cluster_contract_resolved[contract_handle] = instance_type
 
@@ -53,10 +58,8 @@ function call_resolve(features)
         end
     end
 
-    #instance_type = @eval resolve($resolve_args...)
-    instance_type = resolve(resolve_args...)
-
-    return instance_type
+    str = resolve(resolve_args...)
+    return str
 end
 
 #function resolve(provider::Type{<:EC2Cluster}, node_machinetype, node_memory_size, #=node_ecu_count,=# node_vcpus_count, accelerator_count, accelerator_type, accelerator_arch, accelerator, processor, processor_arch, storage_type, storage_size, interconnection_bandwidth)
@@ -70,10 +73,18 @@ function select_instances(filter...)
 
     result = Dict{String, Any}()
 
+    for cond in filter
+        if !haskey(instance_features, cond.first) 
+           @warn "Only instance features are allowed. Ignoring $(cond.first)."
+        end
+    end
+
     for (instance_type, instance_feature) in instance_type_table
         select_flag = true
         for cond in filter
-            select_flag = select_flag && isa(cond.second, instance_feature[cond.first])
+            if haskey(instance_features, cond.first)
+               select_flag = select_flag && isa(cond.second, instance_feature[cond.first])
+            end
         end
 
         if select_flag
@@ -85,7 +96,7 @@ function select_instances(filter...)
 
 end
 
-function fectch_features(instance_info; keytype = Symbol)
+function fetch_features(instance_info; keytype = Symbol)
 
     parameters = Vector()
     instance_feature_table = Dict{Symbol, Any}()

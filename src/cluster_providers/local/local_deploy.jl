@@ -18,7 +18,7 @@ end
 # 2. run deploy_cluster to clusterize them and link to them
 function deploy_cluster(_::Type{Localhost}, cluster_type,  _::Type{CreateMode}, cluster_handle, cluster_features, _)
 
-    count = get(cluster_features, :cluster_nodes, 1)
+    count = get(cluster_features, :node_count, 1)
 
     user_id = ENV["USER"]
     ips = build_ips(cluster_type, count) 
@@ -66,3 +66,6 @@ end
 function terminate_cluster(type::Type{Localhost}, cluster_handle)
     delete!(local_cluster_info, cluster_handle) 
 end
+
+cluster_isrunning(_::Type{Localhost}, cluster_handle::Symbol) = true
+cluster_isstopped(_::Type{Localhost}, cluster_handle::Symbol) = true

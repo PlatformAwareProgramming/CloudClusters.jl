@@ -27,9 +27,11 @@ function deploy_cluster(_::Type{AmazonEC2},
 
     instance_type_master, instance_type_worker = instance_type
 
-    count = get(cluster_features, :cluster_nodes, 1)
+    count = get(cluster_features, :node_count, 1)
 
-    if haskey(cluster_features[:manager_features], :imageid) &&
+    if haskey(cluster_features, :manager_features) &&
+       haskey(cluster_features, :worker_features) &&
+       haskey(cluster_features[:manager_features], :imageid) &&
        haskey(cluster_features[:worker_features], :imageid) &&
       !haskey(cluster_features, :imageid) 
        imageid_master = cluster_features[:manager_features][:imageid]     
@@ -37,10 +39,12 @@ function deploy_cluster(_::Type{AmazonEC2},
      elseif haskey(cluster_features, :imageid) 
        imageid_master = imageid_worker = cluster_features[:imageid]     
      else
-       imageid_master = imageid_worker = defaults_dict[:imageid]    
+       imageid_master = imageid_worker = defaults_dict[AmazonEC2][:imageid]    
      end
  
-    if haskey(cluster_features[:manager_features], :user) &&
+    if haskey(cluster_features, :manager_features) &&
+       haskey(cluster_features, :worker_features) &&
+       haskey(cluster_features[:manager_features], :user) &&
        haskey(cluster_features[:worker_features], :user) &&
       !haskey(cluster_features, :user) 
       user_master = cluster_features[:manager_features][:user]
@@ -48,10 +52,12 @@ function deploy_cluster(_::Type{AmazonEC2},
     elseif haskey(cluster_features, :user) 
       user_master = user_worker = cluster_features[:user]     
     else
-      user_master = user_worker = defaults_dict[:user]
+      user_master = user_worker = defaults_dict[CloudProvider][:user]
     end
 
-    if haskey(cluster_features[:manager_features], :keyname) &&
+    if haskey(cluster_features, :manager_features) &&
+       haskey(cluster_features, :worker_features) &&
+       haskey(cluster_features[:manager_features], :keyname) &&
        haskey(cluster_features[:worker_features], :keyname) &&
       !haskey(cluster_features, :keyname) 
       keyname_master = cluster_features[:manager_features][:keyname]     
@@ -59,12 +65,12 @@ function deploy_cluster(_::Type{AmazonEC2},
     elseif haskey(cluster_features, :keyname) 
       keyname_master = keyname_worker = cluster_features[:keyname]     
     else
-      keyname_master = keyname_worker = defaults_dict[:keyname]
+      keyname_master = keyname_worker = defaults_dict[CloudProvider][:keyname]
     end
 
-    subnet_id = get(cluster_features, :subnet_id, get(defaults_dict, :subnet_id, nothing))
-    placement_group = get(cluster_features, :placement_group, get(defaults_dict, :placement_group, nothing))  
-    security_group_id = get(cluster_features, :security_group_id, get(defaults_dict, :security_group_id, nothing)) 
+    subnet_id = get(cluster_features, :subnet_id, get(defaults_dict[AmazonEC2], :subnet_id, nothing))
+    placement_group = get(cluster_features, :placement_group, get(defaults_dict[AmazonEC2], :placement_group, nothing))  
+    security_group_id = get(cluster_features, :security_group_id, get(defaults_dict[AmazonEC2], :security_group_id, nothing)) 
 
     auto_pg, placement_group = placement_group == "automatic" ? (true, create_placement_group(string("pgroup_", cluster_handle))) : (false, placement_group)
     auto_sg, security_group_id = security_group_id == "automatic" ? (true, create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
@@ -87,6 +93,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     return ips, user_master
 end
 
+#get_cluster(cluster_handle) = ec2_cluster_info[cluster_handle] |> first
 
 
 # 1. create a set of EC2 instances using the EC2 API
@@ -100,13 +107,13 @@ function deploy_cluster(_::Type{AmazonEC2},
                        )
     #= the necessary information to perform cluster operations (interrupt, resume, terminate) =#
 
-    count = get(cluster_features, :cluster_nodes, 1)
-    imageid = get(cluster_features, :imageid, defaults_dict[:imageid]) 
-    user = get(cluster_features, :user, defaults_dict[:user]) 
-    keyname = get(cluster_features, :keyname, defaults_dict[:keyname])
-    subnet_id = get(cluster_features, :subnet_id, get(defaults_dict, :subnet_id, nothing))
-    placement_group = get(cluster_features, :placement_group, get(defaults_dict, :placement_group, nothing))  
-    security_group_id = get(cluster_features, :security_group_id, get(defaults_dict, :security_group_id, nothing)) 
+    count = get(cluster_features, :node_count, 1)
+    user = get(cluster_features, :user, defaults_dict[CloudProvider][:user]) 
+    keyname = get(cluster_features, :keyname, defaults_dict[CloudProvider][:keyname])
+    imageid = get(cluster_features, :imageid, defaults_dict[AmazonEC2][:imageid]) 
+    subnet_id = get(cluster_features, :subnet_id, get(defaults_dict[AmazonEC2], :subnet_id, nothing))
+    placement_group = get(cluster_features, :placement_group, get(defaults_dict[AmazonEC2], :placement_group, nothing))  
+    security_group_id = get(cluster_features, :security_group_id, get(defaults_dict[AmazonEC2], :security_group_id, nothing)) 
 
     auto_pg, placement_group = placement_group == "automatic" ? (true, create_placement_group(string("pgroup_", cluster_handle))) : (false, placement_group)
     auto_sg, security_group_id = security_group_id == "automatic" ? (true, create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
@@ -130,7 +137,11 @@ function launch_processes(_::Type{AmazonEC2}, cluster_features, cluster_type, ip
       launch_processes_ssh(cluster_features, cluster_type, ips, user_id)
 end
 
+get_ips(provider, cluster_handle::Symbol) = ec2_cluster_info[cluster_handle] |> first |> h -> get_ips(provider, h)
+
 #==== INTERRUPT CLUSTER ====#
+
+can_interrupt(cluster_handle::Symbol) = ec2_cluster_info[cluster_handle] |> first |> can_interrupt
 
 function interrupt_cluster(type::Type{AmazonEC2}, cluster_handle)
   cluster, _ = ec2_cluster_info[cluster_handle]
@@ -138,6 +149,8 @@ function interrupt_cluster(type::Type{AmazonEC2}, cluster_handle)
 end
 
 #==== RESUME CLUSTER ====#
+
+can_resume(cluster_handle::Symbol) = ec2_cluster_info[cluster_handle] |> first |> can_resume
 
 function resume_cluster(type::Type{AmazonEC2}, cluster_handle)
   cluster, user = ec2_cluster_info[cluster_handle]
@@ -156,9 +169,16 @@ function terminate_cluster(provider::Type{AmazonEC2}, cluster_handle)
   nothing
 end
 
-function restart_cluster(provider::Type{AmazonEC2}, cluster_handle, cluster)
+#==== RESTART CLUSTER ====#
+
+function reconnect_cluster(provider::Type{AmazonEC2}, cluster_handle, cluster)
   user = get_user(provider, cluster)
   ec2_cluster_info[cluster_handle] = (cluster, user)
+end
+
+function get_user(cluster_handle::Symbol) 
+  _, user = ec2_cluster_info[cluster_handle]
+  return user
 end
 
 function get_user(_::Type{AmazonEC2}, cluster::ManagerWorkersCluster)
@@ -169,15 +189,23 @@ function get_user(_::Type{AmazonEC2}, cluster::ManagerWorkersCluster)
     elseif haskey(cluster.features, :user) 
       return cluster.features[:user]     
     else
-      return defaults_dict[:user]
+      return defaults_dict[CloudProvider][:user]
     end
 end
 
 function get_user(_::Type{AmazonEC2}, cluster::PeerWorkersCluster)
-  get(cluster.features, :user, defaults_dict[:user]) 
+  get(cluster.features, :user, defaults_dict[CloudProvider][:user]) 
 end
     
 function forget_cluster(_::Type{AmazonEC2}, cluster_handle)
   configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
   rm(joinpath(configpath, "$cluster_handle.cluster"))
+end
+
+cluster_isrunning(_::Type{AmazonEC2}, cluster_handle::Symbol) = ec2_cluster_info[cluster_handle] |> first |> cluster_isrunning_ec2
+cluster_isstopped(_::Type{AmazonEC2}, cluster_handle::Symbol) = ec2_cluster_info[cluster_handle] |> first |> cluster_isstopped_ec2
+
+function cluster_status(cluster_handle::Symbol, status_list)
+  cluster = ec2_cluster_info[cluster_handle] |> first
+  cluster_status(cluster, status_list)
 end

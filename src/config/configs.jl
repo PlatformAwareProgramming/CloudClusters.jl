@@ -1,11 +1,14 @@
-using TOML
 
-function readCCConfig()
+function readCCConfig(_::Type{CloudProvider})
+    readCCConfig("CCconfig.toml")
+end
+
+function readCCConfig(config_file::String)
 
     # read the platform description file (default to the current directory)
     configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
 
-    filename = string(configpath, "/CCconfig.toml")
+    filename = string(configpath, "/$config_file")
 
     @info "reading configurations from $filename"
 
@@ -16,7 +19,7 @@ function readCCConfig()
             close(io)
             contents
          catch
-            default_location = "/etc/CCconfig.toml"
+            default_location = "/etc/$config_file"
             try
                 # defaul system location
                 io = open(default_location)
@@ -24,7 +27,7 @@ function readCCConfig()
                 close(io)
                 contents
             catch
-                @info "The configuration file (CCconfig.toml) was not found."
+                @info "The configuration file ($config_file) was not found."
      
      #           dpf_path = @get_scratch!("default_platform_path")
      #           dpf_url = "https://raw.githubusercontent.com/PlatformAwareProgramming/PlatformAware.jl/master/src/features/default/Platform.toml"
@@ -37,49 +40,42 @@ function readCCConfig()
     
     @info "=====> $ccconfig_toml"
     if isnothing(ccconfig_toml)
-        @error "The configuration file (CCconfig.toml) was not found."
+        @error "The configuration file ($config_file) was not found."
         return nothing
     end
 
     TOML.parse(ccconfig_toml)    
 end
 
+function loadDefaults(_::Type{CloudProvider}, ccconfig_dict)
+
+    defaults_dict = Dict()
+
+    haskey(ccconfig_dict["defaults"], "user") && (defaults_dict[:user] = ccconfig_dict["defaults"]["user"])
+    haskey(ccconfig_dict["defaults"], "keyname") && (defaults_dict[:keyname] = ccconfig_dict["defaults"]["keyname"])
+    haskey(ccconfig_dict["defaults"], "exename") && (defaults_dict[:exename] = ccconfig_dict["defaults"]["exename"])
+    haskey(ccconfig_dict["defaults"], "exeflags") && (defaults_dict[:exeflags] = ccconfig_dict["defaults"]["exeflags"])
+    haskey(ccconfig_dict["defaults"], "directory") && (defaults_dict[:directory] = ccconfig_dict["defaults"]["directory"])
+    haskey(ccconfig_dict["defaults"], "tunneled") && (defaults_dict[:tunneled] = ccconfig_dict["defaults"]["tunneled"])
+    haskey(ccconfig_dict["defaults"], "threadlevel") && (defaults_dict[:threadlevel] = Symbol(ccconfig_dict["defaults"]["threadlevel"]))
+    haskey(ccconfig_dict["defaults"], "mpiflags") && (defaults_dict[:mpiflags] = ccconfig_dict["defaults"]["mpiflags"])
+    haskey(ccconfig_dict["defaults"], "sshflags") && (defaults_dict[:sshflags] = ccconfig_dict["defaults"]["sshflags"])
+    
+    return defaults_dict
+end
+
+providers = [CloudProvider, AmazonEC2, GoogleCloud]
 
 
 function load!()
-    ccconfig_dict = readCCConfig() 
-    if !isnothing(ccconfig_dict)
-       loadDefaults(ccconfig_dict)
-    else
-       @error "Default configuration is empty"
+    for provider_type in providers
+        ccconfig_dict = readCCConfig(provider_type) 
+        if !isnothing(ccconfig_dict)
+           defaults_dict[provider_type] = loadDefaults(provider_type, ccconfig_dict) 
+        else
+           @error "Default configuration of $provider_type is empty"
+        end
     end
 end
 
 defaults_dict = Dict()
-
-function loadDefaults(ccconfig_dict)
-
-    defaults_dict[:imageid] = ccconfig_dict["defaults"]["imageid"]
-    defaults_dict[:user] = ccconfig_dict["defaults"]["user"]
-    defaults_dict[:keyname] = ccconfig_dict["defaults"]["keyname"]
-    defaults_dict[:exename] = ccconfig_dict["defaults"]["exename"]
-    defaults_dict[:exeflags] = ccconfig_dict["defaults"]["exeflags"]
-    defaults_dict[:directory] = ccconfig_dict["defaults"]["directory"]
-    defaults_dict[:tunneled] = ccconfig_dict["defaults"]["tunneled"]
-    defaults_dict[:threadlevel] = Symbol(ccconfig_dict["defaults"]["threadlevel"])
-    defaults_dict[:mpiflags] = ccconfig_dict["defaults"]["mpiflags"]
-    defaults_dict[:sshflags] = ccconfig_dict["defaults"]["sshflags"]
-    
-    if haskey(ccconfig_dict["defaults"],"subnet_id")
-        defaults_dict[:subnet_id] = ccconfig_dict["defaults"]["subnet_id"]
-    end
-    
-    if haskey(ccconfig_dict["defaults"],"security_group_id")
-        defaults_dict[:security_group_id] = ccconfig_dict["defaults"]["security_group_id"]
-    end
-    if haskey(ccconfig_dict["defaults"],"placement_group")
-        defaults_dict[:placement_group] = ccconfig_dict["defaults"]["placement_group"] 
-    end
-
-    @info defaults_dict
-end

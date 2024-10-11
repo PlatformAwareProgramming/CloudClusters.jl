@@ -1,10 +1,5 @@
 
-
-
-
-
-macro cluster(features...)
-
+function readFeatures(features)
     common_features = Vector()
     manager_features = Vector()
     worker_features = Vector()
@@ -39,9 +34,17 @@ macro cluster(features...)
 
     !isempty(manager_features) && push!(common_features, Expr(:call, :(=>), :(:manager_features), Expr(:call, :Dict, manager_features...)))
     !isempty(worker_features) && push!(common_features, Expr(:call, :(=>), :(:worker_features), Expr(:call, :Dict, worker_features...)))
+
+    return common_features
+end
+
+
+
+macro cluster(features...)
+
+    common_features = readFeatures(features)
     
     cluster_create_call = Expr(:call, :cluster_create, common_features...)
-
     esc(cluster_create_call) 
 end
 
@@ -53,8 +56,11 @@ macro resolve(contract_ids...)
     esc(Expr(:vect, resolve_calls...))
 end
 
-macro deploy(contract_id)
-    deploy_call = Expr(:call, :cluster_deploy, contract_id)
+macro deploy(contract_id, features...)
+
+    common_features = readFeatures(features)
+
+    deploy_call = Expr(:call, :cluster_deploy, contract_id, common_features...)
     esc(deploy_call)
 end
 
@@ -119,9 +125,16 @@ macro clusters(params...)
     esc(call)
 end
 
-macro restart(param)
-
-    call = Expr(:call, :cluster_restart, param)
-
+macro restart(cluster_handle)
+    call = Expr(:call, :cluster_restart, cluster_handle)
     esc(call)
+end
+
+macro reconnect(cluster_handle)
+    call = Expr(:call, :cluster_reconnect, cluster_handle)
+    esc(call)
+end
+
+
+macro status(cluster_handle)
 end

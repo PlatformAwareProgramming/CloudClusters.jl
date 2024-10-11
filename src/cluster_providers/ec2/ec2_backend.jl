@@ -115,7 +115,6 @@ function create_cluster(cluster::Cluster)
     cluster
 end
 
-
 function get_ips(_::Type{AmazonEC2}, cluster::Cluster)
     ips = Dict()
     for (node, id) in cluster.cluster_nodes
@@ -217,9 +216,9 @@ Criação de Instâncias
 # Funções auxiliares.
 function set_up_ssh_connection(cluster_name)                    
    # Criar chave interna pública e privada do SSH.
-   chars = ['a':'z'; 'A':'Z'; '0':'9']
-   random_suffix = join(chars[Random.rand(1:length(chars), 5)])
-   internal_key_name = cluster_name * random_suffix
+   # chars = ['a':'z'; 'A':'Z'; '0':'9']
+   # random_suffix = join(chars[Random.rand(1:length(chars), 5)])
+   internal_key_name = cluster_name
    run(`ssh-keygen -f /tmp/$internal_key_name -N ""`)
    private_key = base64encode(read("/tmp/$internal_key_name", String))
    public_key = base64encode(read("/tmp/$internal_key_name.pub", String))
@@ -337,7 +336,6 @@ function try_run(command)
 end
  
 function set_hostfile(cluster_nodes, internal_key_name)
-    @info "---------------- $cluster_nodes"
     # Testando se a conexão SSH está ativa.
     for instance in keys(cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
@@ -376,7 +374,7 @@ function set_hostfile(cluster_nodes, internal_key_name)
     # Atualiza o hostname e o hostfile.
     for instance in keys(cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
-        private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
+       # private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
 #        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
@@ -438,25 +436,12 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
         cluster_nodes[Symbol("worker$i")] = instance_id
     end
 
-    # Verify if instances are running.
-    for instance in keys(cluster_nodes)
-        while get_instance_status(cluster_nodes[instance]) != "running"
-            println("Waiting for $instance to be running...")
-            sleep(5)
-        end
-    end
-
-    # Verify if instances have passed the tests.
-    for instance in keys(cluster_nodes)
-        while get_instance_check(cluster_nodes[instance]) != "ok"
-            println("Waiting for $instance to pass the tests...")
-            sleep(5)
-        end
-    end
+    await_status(cluster_nodes, "running")
+    await_check(cluster_nodes, "ok")
 
     set_hostfile(cluster_nodes, internal_key_name)
 
-    remove_temp_files(internal_key_name)
+    #remove_temp_files(internal_key_name)
 
     cluster_nodes
 end
@@ -496,27 +481,47 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
         cluster_nodes[Symbol("peer$i")] = instance_id
     end
 
-    # Verify if instances are running.
-    for instance in keys(cluster_nodes)
-        while get_instance_status(cluster_nodes[instance]) != "running"
-            println("Waiting for $instance to be running...")
-            sleep(5)
-        end
-    end
-
-    # Verify if instances have passed the tests.
-    for instance in keys(cluster_nodes)
-        while get_instance_check(cluster_nodes[instance]) != "ok"
-            println("Waiting for $instance to pass the tests...")
-            sleep(5)
-        end
-    end
+    await_status(cluster_nodes, "running")
+    await_check(cluster_nodes, "ok")
 
     set_hostfile(cluster_nodes, internal_key_name)
 
-    remove_temp_files(internal_key_name)
+   # remove_temp_files(internal_key_name)
 
     cluster_nodes
+end
+
+function await_status(cluster_nodes, status)
+    for nodeid in keys(cluster_nodes)
+        while get_instance_status(cluster_nodes[nodeid]) != status
+            println("Waiting for $nodeid to be $status...")
+            sleep(5)
+        end
+    end
+end
+
+function await_check(cluster_nodes, status)
+    for nodeid in keys(cluster_nodes)
+        while get_instance_check(cluster_nodes[nodeid]) != status
+            println("Waiting for $nodeid to be $status...")
+            sleep(5)
+        end
+    end
+end
+
+function cluster_status(cluster::Cluster, status_list)
+    cluster_nodes = cluster.cluster_nodes
+    for nodeid in keys(cluster_nodes)
+        !(get_instance_status(cluster_nodes[nodeid]) in status_list) && return false
+    end
+    return true
+end
+
+function cluster_check(cluster_nodes, status)
+    for nodeid in keys(cluster_nodes)
+        ! (get_instance_check(cluster_nodes[nodeid]) == status) && return false
+    end
+    return true
 end
 
 function delete_instances(cluster_nodes)
@@ -526,13 +531,29 @@ function delete_instances(cluster_nodes)
 end
 
 function get_instance_status(id)
-    description = Ec2.describe_instances(Dict("InstanceId" => id))
-    description["reservationSet"]["item"]["instancesSet"]["item"]["instanceState"]["name"]
+    try
+        description = Ec2.describe_instances(Dict("InstanceId" => id))    
+        if haskey(description["reservationSet"], "item")
+            description["reservationSet"]["item"]["instancesSet"]["item"]["instanceState"]["name"]
+        else
+            "notfound"
+        end
+    catch _
+        "notfound"
+    end
 end
 
 function get_instance_check(id)
-    description = Ec2.describe_instance_status(Dict("InstanceId" => id))
-    description["instanceStatusSet"]["item"]["instanceStatus"]["status"]
+    try
+        description = Ec2.describe_instance_status(Dict("InstanceId" => id))
+        if haskey(description["instanceStatusSet"], "item")
+            description["instanceStatusSet"]["item"]["instanceStatus"]["status"]
+        else
+            "notfound"
+        end
+    catch _
+        "notfound"
+    end
 end
 
 function get_instance_subnet(id)
@@ -594,35 +615,33 @@ end
 
 # Heron: "se as definições são a mesma para os tipos de clusters, use cluster::Cluster como parâmetro em um único método"
 
+can_interrupt(cluster::Cluster) = cluster_isrunning_ec2(cluster)
+
 # Interrupt cluster instances. If someone is not in "running" state, raise an exception.
-function interrupt_cluster(cluster::ManagerWorkersCluster)
-  @info "interrupt manager-workers $cluster (under development)"
+function interrupt_cluster(cluster::Cluster)
+    stop_instances(cluster)
+    await_status(cluster.cluster_nodes, "stopped")
 end
 
-function interrupt_cluster(cluster::PeerWorkersCluster)
-  @info "interrupt peer-workers $cluster (under development)"
-end
+can_resume(cluster::Cluster) = cluster_status(cluster, ["stopped"])
 
 # Start interrupted cluster instances or reboot running cluster instances.
 # All instances must be in "interrupted" or "running" state.
 # If some instance is not in "interrupted" or "running" state, raise an exception.
-function resume_cluster(cluster::ManagerWorkersCluster)
-  @info "resume $cluster (under development)"
+function resume_cluster(cluster::Cluster)
+    start_instances(cluster)
+    await_status(cluster.cluster_nodes, "running")
+    await_check(cluster.cluster_nodes, "ok")
+    for instance in keys(cluster.cluster_nodes)
+        public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster.cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
+        try_run(`ssh -i /tmp/$(cluster.name) -o StrictHostKeyChecking=no ubuntu@$public_ip uptime`)
+    end    
 end
 
-function resume_cluster(cluster::PeerWorkersCluster)
-  @info "resume $cluster (under development)"
-end
 
 # Check if the cluster instances are running or interrupted.
-function cluster_isrunning(cluster::ManagerWorkersCluster)
-    return true
-end
-
-function cluster_isrunning(cluster::PeerWorkersCluster)
-    return true
-end
-
+cluster_isrunning_ec2(cluster::Cluster) = cluster_status(cluster, ["running"]) && cluster_check(cluster.cluster_nodes, "ok")
+cluster_isstopped_ec2(cluster::Cluster) = cluster_status(cluster, ["stopped"])
 
 function stop_instances(cluster::Cluster)
     for id in values(cluster.cluster_nodes)

@@ -6,6 +6,7 @@ db = PlatformAware.readCloudInstancesDB(GoogleCloud)
 
 ACCELERATOR_TYPE_INDEX = 3
 ACCELERATOR_ARCH_INDEX = 6
+ACCELERATOR_MEM_SIZE = 7
 ACCELERATOR_MODEL_INDEX = 2
 ACCELERATOR_MAN_INDEX = 4
 PROCESSOR_MODEL_INDEX = 8
@@ -23,6 +24,7 @@ for (instance_type, instance_info) in db
         accelerator_arch = accelerator_specs[ACCELERATOR_ARCH_INDEX]
         accelerator_model = accelerator_specs[ACCELERATOR_MODEL_INDEX]
         accelerator_man = accelerator_specs[ACCELERATOR_MAN_INDEX]
+        accelerator_memory_size = accelerator_specs[ACCELERATOR_MEM_SIZE]
     else
         if accelerator_desc != "na"
             @warn "The $accelerator_desc accelerator is not registered in the database."
@@ -31,6 +33,7 @@ for (instance_type, instance_info) in db
         accelerator_arch = "AcceleratorArchitecture"
         accelerator_man = "Manufacturer"
         accelerator_model = "Accelerator"
+        accelerator_memory_size = "0"
     end 
 
     processor_desc = instance_info["processor"]
@@ -51,16 +54,17 @@ for (instance_type, instance_info) in db
     instance_info["accelerator_type"] = accelerator_type
     instance_info["accelerator_architecture"] = accelerator_arch
     instance_info["accelerator_manufacturer"] = accelerator_man
+    instance_info["accelerator_memory_size"] = accelerator_memory_size
     instance_info["accelerator"] = accelerator_model
     instance_info["processor"] = processor_model
     instance_info["processor_microarchitecture"] = processor_arch
     instance_info["processor_manufacturer"] = processor_man
 
-    parameters, instance_feature_table = fectch_features(instance_info, keytype = String)
+    parameters, instance_feature_table = fetch_features(instance_info, keytype = String)
 
     instance_type_table[instance_type] = instance_feature_table
 
-    resolve_decl = Expr(:function, Expr(:call, parameters...), Expr(:block, Expr(:return, instance_type)))
+    resolve_decl = Expr(:function, Expr(:call, parameters...), Expr(:block, Expr(:return, (instance_type, PlatformAware.GoogleCloud))))
     eval(resolve_decl)
 
 end

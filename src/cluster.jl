@@ -37,8 +37,11 @@ function cluster_create(args...)
     
     cluster_features = Dict{Symbol, Any}(args)
 
-    cluster_type = cluster_features[:cluster_type]
-
+    # default cluster type
+    !haskey(cluster_features, :cluster_type) && (cluster_features[:cluster_type] = PeerWorkers)
+    
+    cluster_type  = cluster_features[:cluster_type]
+    
     contract_handle = create_sym(15)
 
     cluster_contract[contract_handle] = (cluster_type, cluster_features)
@@ -51,12 +54,13 @@ function forget_cluster(contract_handle)
     delete!(cluster_contract, contract_handle) 
 end
 
+#cluster_reconnect_cache = Dict()
 
 function cluster_list(;from = DateTime(0), cluster_type = :AnyCluster)
 
     @assert cluster_type in [:AnyCluster, :ManagerWorkers, :PeerWorkers]
 
-    result = Dict()
+    result = Vector()
 
     configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
 
@@ -64,23 +68,10 @@ function cluster_list(;from = DateTime(0), cluster_type = :AnyCluster)
 
     for cluster_file in path_contents
         if occursin(r"\s*.cluster", cluster_file)
-            contents = TOML.parsefile(cluster_file)
-            timestamp = DateTime(contents["timestamp"])
-            this_cluster_type = contents["type"]
-            cluster_handle = Symbol(contents["name"])
-            if timestamp > from && (cluster_type == :AnyCluster || cluster_type == Symbol(this_cluster_type))
-                cluster_provider = contents["provider"]
-                cluster_provider_type = fetchtype(cluster_provider)
-                this_cluster_type_type = fetchtype(this_cluster_type)
-                cluster_info = cluster_load(cluster_provider_type, this_cluster_type_type, cluster_handle, contents)
-                if cluster_isrunning(cluster_info) 
-                   @info "$this_cluster_type $cluster_handle, created at $timestamp on $cluster_provider"
-                   result[cluster_handle] = Dict(:timestamp => timestamp, :info => cluster_info)
-                else
-                    forget_cluster(cluster_provider_type, cluster_handle)
-                end
-            end
-        end
+            cluster_data = load_cluster(cluster_file; from=from, cluster_type=cluster_type)
+            delete!(cluster_data, :info)
+            !isempty(cluster_data) && push!(result, cluster_data)
+         end
     end
 
     return result

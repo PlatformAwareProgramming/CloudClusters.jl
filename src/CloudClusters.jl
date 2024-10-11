@@ -5,6 +5,7 @@ using MPIClusterManagers
 using PlatformAware
 using Base.Threads
 using Dates
+using TOML
 
 include("config/configs.jl")
 include("features/features.jl")
@@ -13,10 +14,12 @@ include("cluster.jl")
 include("resolve.jl")
 include("deploy.jl")
 include("macros.jl")
+include("cluster_providers/ec2/ec2_configs.jl")
 include("cluster_providers/ec2/ec2_backend.jl")
 include("cluster_providers/ec2/ec2_persist.jl")
 include("cluster_providers/ec2/ec2_resolve.jl")
 include("cluster_providers/ec2/ec2_deploy.jl")
+include("cluster_providers/gcp/gcp_configs.jl")
 include("cluster_providers/gcp/gcp_backend.jl")
 include("cluster_providers/gcp/gcp_resolve.jl")
 include("cluster_providers/gcp/gcp_deploy.jl")
@@ -35,7 +38,9 @@ export cluster_create, @cluster,
        cluster_resume, @resume,
        cluster_terminate, @terminate,
        cluster_list, @clusters,
-       cluster_restart, @restart
+       cluster_reconnect, @reconnect,
+       cluster_restart, @restart,
+       nodes
 
 # Cluster types
 export ManagerWorkers, PeerWorkers
