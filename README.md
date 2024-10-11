@@ -64,10 +64,10 @@ The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AW
 >[!WARNING]
 >The process of creating VM instances (cluster nodes) until they are ready to be connected to the processes via _Distributed.jl_, can be lengthy, depending on the provider.
 
-After __@deploy__, for each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the user fetches the _pids_ of the processes at the cluster nodes. 
+After __@deploy__, for each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___nodes___ function, passing the cluster handle as an argument. In the following code, the user fetches the _pids_ of the processes at the cluster nodes. 
 
 ```julia-repl
-julia> workers(my_first_cluster)
+julia> nodes(my_first_cluster)
 4-element Vector{Int64}
 2
 3
@@ -119,7 +119,7 @@ The user may execute parallel computations on the cluster by using _Distributed.
 The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, using the ```@everywhere``` primitive of _Distributed.jl_. 
 
 ```julia
-@everywhere workers(my_first_cluster) begin
+@everywhere nodes(my_first_cluster) begin
    @eval using MPI
    MPI.Init()
    rank = MPI.Comm_rank(MPI.COMM_WORLD)
@@ -157,7 +157,7 @@ In the above code, notice the advanced use of cluster contracts, by asking for i
 Now, there are three available clusters. The _pids_ of the last two ones may be inspected:
 
 ```julia-repl
-julia> workers(my_second_cluster)
+julia> nodes(my_second_cluster)
 8-element Vector{Int64}
 6
 7
@@ -168,7 +168,7 @@ julia> workers(my_second_cluster)
 12
 13
 
-julia> workers(my_third_cluster)
+julia> nodes(my_third_cluster)
 8-element Vector{Int64}
 14
 15
@@ -372,7 +372,7 @@ The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, us
 ```julia
 my_first_cluster = @deploy my_first_cluster_contract
 
-@everywhere workers(my_first_cluster) begin
+@everywhere nodes(my_first_cluster) begin
    @eval using MPI
    MPI.Init()
    rank = MPI.Comm_rank(MPI.COMM_WORLD)
