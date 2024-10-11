@@ -64,10 +64,10 @@ The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AW
 >[!WARNING]
 >The process of creating VM instances (cluster nodes) until they are ready to be connected to the processes via _Distributed.jl_, can be lengthy, depending on the provider.
 
-After __@deploy__, for each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___workers___ function, passing the cluster handle as an argument. In the following code, the user fetches the _pids_ of the processes at the cluster nodes. 
+After __@deploy__, for each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___nodes___ function, passing the cluster handle as an argument. In the following code, the user fetches the _pids_ of the processes at the cluster nodes. 
 
 ```julia-repl
-julia> workers(my_first_cluster)
+julia> nodes(my_first_cluster)
 4-element Vector{Int64}
 2
 3
