@@ -285,18 +285,18 @@ function launch_processes_local(cluster_features, _::Type{<:PeerWorkers}, ips, u
 end
 
 function cluster_interrupt(cluster_handle)
-    !can_interrupt(cluster_handle) && throw(error("cluster is not running"))
     cluster_features = cluster_deploy_info[cluster_handle][:cluster_features]
+    node_provider = cluster_features[:node_provider]
+    @assert(can_interrupt(node_provider, cluster_handle), "cluster is not running") 
     cluster_type = cluster_features[:cluster_type]
     kill_processes(cluster_handle, cluster_type, cluster_features)
-    node_provider = cluster_deploy_info[cluster_handle][:cluster_features][:node_provider]
     interrupt_cluster(node_provider, cluster_handle)
 end
 
 function cluster_resume(cluster_handle)
-    !can_resume(cluster_handle) && throw(error("cluster is not stopped"))
     cluster_features = cluster_deploy_info[cluster_handle][:cluster_features]
     node_provider = cluster_features[:node_provider]
+    @assert(can_resume(node_provider, cluster_handle), "cluster is not stopped") 
     ip_config, user_id = resume_cluster(node_provider, cluster_handle) 
     cluster_type = cluster_features[:cluster_type]
     pids = launch_processes(node_provider, cluster_features, cluster_type, ip_config, user_id)
@@ -338,7 +338,7 @@ function load_cluster(cluster_handle::String; from = DateTime(0), cluster_type =
             cluster_provider_type = fetchtype(cluster_provider)
             this_cluster_type_type = fetchtype(this_cluster_type)
             cluster_info = cluster_load(cluster_provider_type, this_cluster_type_type, cluster_handle, contents)
-            if cluster_status(cluster_info, ["running", "stopped"]) 
+            if cluster_status(cluster_provider_type, cluster_info, ["running", "stopped"])  
                 @info "$this_cluster_type $cluster_handle, created at $timestamp on $cluster_provider"
                 #cluster_reconnect_cache[cluster_handle] = cluster_info
                 result[:handle] = cluster_handle
@@ -358,13 +358,13 @@ function load_cluster(cluster_handle::String; from = DateTime(0), cluster_type =
 end
 
 function cluster_restart(cluster_handle::Symbol)
-    !can_interrupt(cluster_handle) && throw(error("cluster is not running"))
     cluster_features = cluster_deploy_info[cluster_handle][:cluster_features]
+    node_provider = cluster_features[:node_provider]
+    @assert(can_interrupt(node_provider, cluster_handle), "cluster is not running")
     cluster_type = cluster_features[:cluster_type]
     kill_processes(cluster_handle, cluster_type, cluster_features)
-    node_provider = cluster_features[:node_provider]
     ip_config = get_ips(node_provider, cluster_handle) 
-    user_id = get_user(cluster_handle)
+    user_id = get(cluster_features, :user, defaults_dict[CloudProvider][:user]) # get_user(node_provider, cluster_handle)
     pids = launch_processes(node_provider, cluster_features, cluster_type, ip_config, user_id)
     cluster_deploy_info[cluster_handle][:pids] = pids    
     nothing 
@@ -378,7 +378,7 @@ function cluster_reconnect(cluster_handle::Symbol)
 
     pids = if cluster_isrunning(cluster.provider, cluster_handle) 
               ips = get_ips(cluster.provider, cluster)
-              user_id = get_user(cluster.provider, cluster)
+              user_id = get(cluster.features, :user, defaults_dict[CloudProvider][:user])  #get_user(cluster.provider, cluster_handle)
               launch_processes(cluster.provider, cluster.features, typeof(cluster), ips, user_id) 
            else 
               nothing

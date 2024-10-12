@@ -10,3 +10,18 @@ function fetchtype(strt)
     end
     m
 end
+
+function try_run(command)
+
+    successfull = false
+    while !successfull
+        try
+            run(command)
+            successfull = true
+        catch
+            @error "failed: $command - trying again"
+            sleep(0.5)
+        end        
+    end
+
+end

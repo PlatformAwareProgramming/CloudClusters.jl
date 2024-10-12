@@ -51,7 +51,7 @@ end
 
 #==== INTERRUPT CLUSTER ====#
 
-function interrupt_cluster(type::Type{Localhost}, cluster_handle)
+function interrupt_cluster(_::Type{Localhost}, cluster_handle)
    # NOTHING TO DO 
 end
 

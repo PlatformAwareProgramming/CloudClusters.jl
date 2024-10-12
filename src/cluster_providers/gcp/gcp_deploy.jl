@@ -23,7 +23,7 @@ end
 
 #==== INTERRUPT CLUSTER ====#
 
-function interrupt_cluster(type::Type{GoogleCloud}, cluster_handle)
+function interrupt_cluster(_::Type{GoogleCloud}, cluster_handle)
     
 end
 
