@@ -76,7 +76,7 @@ julia> nodes(my_first_cluster)
 5
 ```
 
-As shown in the example, the default number of worker processes per cluster node is 1. However, the user may create N worker processes per cluster node using the ```node_process_count => N``` parameter in the contract specification. In the following contract, the number of worker processes per cluster node is set to 2.
+As shown in the example, the default number of worker processes per cluster node is 1. However, the user may create N worker processes per cluster node using the ```node_process_count => N``` parameter in the contract specification. For example, in the following contract, the number of worker processes per cluster node is set to 2:
 
 ```julia
 @cluster  node_count => 4  node_process_count=>2  node_machinetype => EC2Type_T3_xLarge
@@ -85,7 +85,7 @@ As shown in the example, the default number of worker processes per cluster node
 
 ## Running computations on the cluster
 
-The user may execute parallel computations on the cluster by using _Distributed.jl_ to communicate with cluster nodes from the master process and _MPI.jl_ to implement the parallel computation between cluster nodes. 
+The user may execute parallel computations on the cluster by using _Distributed.jl_ operations. In fact, the user can employ any distributed computing package that can help him/her to launch computations in a set of running worker processes. 
 
 The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, using the ```@everywhere``` primitive of _Distributed.jl_. 
 
