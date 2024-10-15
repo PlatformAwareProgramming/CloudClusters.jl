@@ -140,7 +140,7 @@ The users can create cluster contracts, as well as deploy clusters from each con
 ```julia
 
 my_second_cluster_contract = @cluster(node_count => 8,   
-                                      node_memory => @atleast(512G),
+                                      node_memory_size => @atleast(512G),
                                       accelerator_count => @just(8),
                                       accelerator_architecture => Ada)
 
@@ -242,7 +242,7 @@ julia> @clusters
 
 As shown in the previous examples of using the ___@cluster___ macro, _CloudClusters.jl_ supports _cluster contracts_ to specify _assumptions_ about _features_ of clusters, with special attention to the types of VM instances comprising cluster nodes. 
 
-Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a _platform type_. A predefined set of assumption parameters is supported, each with a _name_ and a _base platform type_. They are listed [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#list-of-supported-assumption-parameters), They provide a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs.
+Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a _platform type_. A predefined set of assumption parameters is supported, each with a _name_ and a _base platform type_. They are listed [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#list-of-supported-assumption-parameters), providing a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs.
 
 In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___node_count___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and less abstract one, where the resolution procedure, triggered by a call to __@resolve__ , will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract.
 
@@ -263,7 +263,7 @@ julia> @resolve cc
 ERROR: MethodError: resolve(::Type{CloudProvider}, ::Type{MachineType}, ::Type{Tuple{AtLeast256G, AtMostInf, var"#92#X"} where var"#92#X"}, ::Type{Tuple{AtLeast1, AtMostInf, Q} where Q}, ::Type{Tuple{AtLeast4, AtMostInf, var"#91#X"} where var"#91#X"}, ::Type{AcceleratorType}, ::Type{Ada}, ::Type{Manufacturer}, ::Type{Tuple{AtLeast0, AtMostInf, Q} where Q}, ::Type{Accelerator}, ::Type{Processor}, ::Type{Manufacturer}, ::Type{ProcessorMicroarchitecture}, ::Type{StorageType}, ::Type{Tuple{AtLeast0, AtMostInf, Q} where Q}, ::Type{Tuple{AtLeast0, AtMostInf, Q} where Q}) is ambiguous.
 ```
 
-The user can use ___@select___ macro to query which instance types satisfy the ambiguous contract: 
+The user can use the ___@select___ macro to query which instance types satisfy the ambiguous contract: 
 
 ```julia-repl
 julia> @select(node_count => 4,
@@ -290,17 +290,15 @@ julia> @resolve cc
  :instance_type => "g6.48xlarge"
 ```
 
-#### List of supported assumption parameters
+#### List of instance feature parameters
 
-The supported assumption parameters currently supported by _CloudClusters.jl_, with their respective base platform types, are listed below. They are divided into three groups: _cluster parameters_ and _instance parameters_. 
-
-
-* ___Cluster parameters___ specify features of the cluster:
+___Cluster parameters___ specify features of the cluster:
    * __cluster_type__::```Cluster```, denoting the cluster type: ManagerWorkers or PeerWorkers;
    * __node_count__::```Integer```, denoting the number of cluster nodes;
    * __node_process_count__::```Integer```, denoting the number of Julia processes (MPI ranks) per node.
 
-* ___Instance parameters___ specify assumptions that will guide the choice of VM instance types underlying cluster nodes:
+The supported instance parameters currently supported by _CloudClusters.jl_, with their respective base platform types, are listed below:
+
    * __node_provider__::```CloudProvider```
    * __cluster_locale__::```Locale```
    * __node_machinetype__::```InstanceType```
@@ -324,7 +322,7 @@ The supported assumption parameters currently supported by _CloudClusters.jl_, w
 
 ### Working with cluster types (Peer-Workers vs Manager-Workers clusters)
 
-Manager-Workers clusters comprise a _manager node_ and a homogenous set of _worker nodes_. The instance type of the manager node may differ from the instance type of the worker nodes. The host program is called the _driver process_, which launches the so-called _entry process_ in the manager node of the cluster. In turn, the entry process launches the _worker processes_ in the worker nodes, using _MPIClusterManagers.jl_. 
+Manager-Workers clusters comprise a _manager node_ and a homogenous set of _worker nodes_ only accessible from the manager node. The instance type of the manager node may differ from the instance type of the worker nodes. The host program is called the _driver process_, which launches the so-called _entry process_ in the manager node of the cluster. In turn, the entry process launches _worker processes_ across the worker nodes, using _MPIClusterManagers.jl_. 
 
 The worker processes perform the computation, while the entry process is responsible for communication between the driver and the worker processes. This is necessary to enable manager-worker clusters to offer users the ability to program using MPI (Message Passing Interface) to implement tightly coupled parallel computations involving the worker processes, using the third-party _MPI.jl_ package. 
 
@@ -363,7 +361,7 @@ my_second_cluster_contract = @cluster(cluster_type => ManageWorkers,
                                       worker.accelerator_memory => @atleast(512G))
 ```
 
-This contract specifies that the manager node must be a ___t3.xlarge___ virtual machine, while the worker nodes will have eight NVIDIA GPUs of Ada architecture and at least 512GB of memory.
+This contract specifies that the manager node must be a ___t3.xlarge___ VM instance, while the worker nodes will have eight NVIDIA GPUs of Ada architecture and at least 512GB of memory.
 
 The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, using the ```@everywhere``` primitive of _Distributed.jl_. 
 
@@ -388,7 +386,7 @@ The parallel code calculates the sum of the ranks of the processes using the _Re
 
 ### Configuration parameters
 
-Optionally, ___@deploy__ accepts a set of configuration parameters. An example of using them is shown below:
+The ___@deploy__ operation accepts a set of configuration parameters. An example of using them is shown below:
  
 ```julia
 my_first_cluster = @deploy(my_first_cluster,
@@ -398,6 +396,7 @@ my_first_cluster = @deploy(my_first_cluster,
 ```
 
 There are currently four categories of configuration parameters, described in the following paragraphs.
+
 
 The following configuration parameters set up the SSH connections to peer nodes of peer-workers clusters and the master node of master-worker clusters:
 * __user__::```String```
