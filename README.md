@@ -87,7 +87,7 @@ As shown in the example, the default number of worker processes per cluster node
 
 The user may execute parallel computations on the cluster by using _Distributed.jl_ operations. In fact, the user can employ any distributed computing package that can help him/her to launch computations in a set of running worker processes. 
 
-For example, the following code, adapted from [The ultimate guide to distributed computing in Julia](https://github.com/Arpeggeo/julia-distributed-computing#the-ultimate-guide-to-distributed-computing-in-julia), processes a set of CSV files in a data folder and saves the results in a results folder of each cluster node. Using _pmap_, the files are distributed across the worker processes, and the result files processed by each worker is saved in the results folder of the cluster node where it is placed.
+For example, the following code, adapted from [The ultimate guide to distributed computing in Julia](https://github.com/Arpeggeo/julia-distributed-computing#the-ultimate-guide-to-distributed-computing-in-julia), processes a set of CSV files in a data folder in parallel, using _pmap_, across the worker processes placed at the cluster nodes. The result of each file processing is saved locally, as a CSV file in a results folder.  
 
 ```julia
 using Distributed
@@ -133,18 +133,16 @@ end
 
 ```
 
-The parallel code calculates the sum of the ranks of the processes using the _Reduce_ collective operation of _MPI.jl_, and stores the results in the global variable _rank_sum_ of the root process, with rank 0. Then, this value is fetched by the program and assigned to the _result_ variable using ```@fetchfrom```. For that, the ```ranks``` function is used to discover the _pid_ of the root process.
-
 ## Multiple clusters
 
-The users can freely create cluster contracts they need, and more than a single cluster from each contract. For example, the following code creates a second cluster contract, named ```my_second_cluster_contract```, asking for a cluster of eight VM instances equipped with GPUs of NVIDIA Turing architecture having at least 16GB of memory. Then, it creates two clusters from ```my_second_cluster_contract```. 
+The users can create cluster contracts, as well as deploy clusters from each contract, as many as they need. For example, the following code creates a second cluster contract, named ```my_second_cluster_contract```, asking for a cluster of eight VM instances equipped with exactly eight NVIDIA GPUs of Ada-Lovelace architecture and at least 512GB of memory per node. Then, it creates two clusters from ```my_second_cluster_contract```. 
 
 ```julia
 
-my_second_cluster_contract = @cluster(node_count => 8,
+my_second_cluster_contract = @cluster(node_count => 8,   
+                                      node_memory => @atleast(512G),
                                       accelerator_count => @just(8),
-                                      accelerator_architecture => Ada,   
-                                      accelerator_memory => @atleast(512G))
+                                      accelerator_architecture => Ada)
 
 @resolve my_second_cluster_contract
 
@@ -152,7 +150,7 @@ my_second_cluster = @deploy my_second_cluster_contract
 my_third_cluster = @deploy my_second_cluster_contract
 ```
 
-In the above code, notice the advanced use of cluster contracts, by asking for instance types that satisfy a set of assumptions. At the time this tutorial was written, the AWS EC2 instance type that satisfies these assumptions is ___g6.48xlarge___, equipped with eight NVIDIA L4 T4 Tensor Core GPUs and 768GB of memory.
+This is an advanced use of cluster contracts, asking for instance types that satisfy a set of assumptions specified in the contract through instance parameters. At the time this tutorial was written, the AWS EC2 instance type that satisfies these assumptions is ___g6.48xlarge___, equipped with eight NVIDIA L4 T4 Tensor Core GPUs and 768GB of memory.
 
 Now, there are three available clusters. The _pids_ of the last two ones may be inspected:
 
@@ -180,7 +178,7 @@ julia> nodes(my_third_cluster)
 21
 ```
 
-The user may orchestrate all the deployed clusters to execute computations of their interest, independent of their provider. However, it is important to note that _MPI.jl_ computations must be performed between the processes of the same cluster. Communication operations between the nodes of different clusters may still be performed through _Distributed.jl_, or using the master process as an intermediary. However, inter-cluster communication must be employed with care, only when strictly necessary and asynchronously, if possible, overlapping it with computations, due to the high communication overhead between clusters.
+The user may orchestrate the processing power of multiple clusters to execute computations of their interest, independent of their providers. This is _multicluster computations_. However, it is important to note that communication operations between processes placed at nodes of different clusters (inter-cluster communication), mainly when these clusters are deployed at different IaaS providers, must be used with care, only when strictly necessary and asynchronously, if possible, trying to overlap high communication overheads with useful computations.
 
 ## Interrupting and resuming a cluster
 
@@ -199,7 +197,7 @@ An interrupted cluster can be put back to the running state through the ___@resu
 The resuming operation creates a fresh set of worker processes, with new _pids_.
 
 > [!CAUTION]
-> ___@interrupt___ does not preserve the state of undergoing computations in the cluster, since it kills the worker processes running at the cluster nodes. The interruption of a cluster may be used to avoid the cost of cloud resources that are not currently being used. The user is responsible for saving the state of undergoing computations in a cluster to be interrupted and reloading the state after resuming whenever necessary. 
+> ___@interrupt___ does not preserve the state of undergoing computations in the cluster, since it kills the worker processes running at the cluster nodes. The interruption of a cluster may be used to avoid the cost of cloud resources that are not currently being used. The user is responsible for saving the state of undergoing computations in a cluster to be interrupted and reloading the state after resuming, if necessary. 
 
 ## Restarting processes
 
@@ -223,13 +221,13 @@ After terminating, the cloud resources associated with the cluster are freed.
 
 ## How to reconnect to a non-terminated cluster
 
-If a cluster was not terminated in the execution of a standalone program or REPL session, the user may reconnect it by making a call to the ___@reconnect___ macro. For example:
+If a cluster was not terminated in a previous execution of a standalone program or REPL session, the user may reconnect it using the ___@reconnect___ macro. For example:
 
 ```julia
 @reconnect :FXqElAnSeTEpQAm
 ```
 
-In the above code, ```:FXqElAnSeTEpQAm``` is the handle of a cluster not terminated in a previous execution session. But how may the user discover the cluster handle of a non-terminated cluster? After a crash, for example. For that, the user may call the ___@clusters___ macro, which returns a list of non-terminated clusters in previous sessions that may be reconnected:
+In the above code, ```:FXqElAnSeTEpQAm``` is the handle of a cluster not terminated in a previous execution session. But how may the user discover the cluster handle of a non-terminated cluster? After a crash, for example. For that, the user may call the ___@clusters___ macro, which returns a list of non-terminated clusters in previous sessions that can be reconnected:
 
 ```julia
 julia> @clusters
