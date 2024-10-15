@@ -87,21 +87,50 @@ As shown in the example, the default number of worker processes per cluster node
 
 The user may execute parallel computations on the cluster by using _Distributed.jl_ operations. In fact, the user can employ any distributed computing package that can help him/her to launch computations in a set of running worker processes. 
 
-The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, using the ```@everywhere``` primitive of _Distributed.jl_. 
+For example, the following code, adapted from [The ultimate guide to distributed computing in Julia](https://github.com/Arpeggeo/julia-distributed-computing#the-ultimate-guide-to-distributed-computing-in-julia), processes a set of CSV files in a data folder and saves the results in a results folder of each cluster node. Using _pmap_, the files are distributed across the worker processes, and the result files processed by each worker is saved in the results folder of the cluster node where it is placed.
 
 ```julia
+using Distributed
+
 @everywhere nodes(my_first_cluster) begin
-   @eval using MPI
-   MPI.Init()
-   rank = MPI.Comm_rank(MPI.COMM_WORLD)
-   size = MPI.Comm_size(MPI.COMM_WORLD)
-   @info "I am $rank among $size processes"
-   root_rank = 0
-   rank_sum = MPI.Reduce(rank, (x,y) -> x + y, root_rank, MPI.COMM_WORLD)
+  # load dependencies
+  using ProgressMeter
+  using CSV
+
+  # helper functions
+  function process(infile, outfile)
+    # read file from disk
+    csv = CSV.File(infile)
+
+    # perform calculations
+    sleep(60)
+
+    # save new file to disk
+    CSV.write(outfile, csv)
+  end
 end
 
-result = @fetchfrom ranks(my_first_cluster0)[0] rank_sum
-@info "The sum of ranks in the cluster is $result"
+# MAIN SCRIPT
+# -----------
+
+# relevant directories
+indir  = joinpath(@__DIR__,"data")
+outdir = joinpath(@__DIR__,"results")
+
+# files to process
+infiles  = readdir(indir, join=true)
+outfiles = joinpath.(outdir, basename.(infiles))
+nfiles   = length(infiles)
+
+status = @showprogress pmap(1:nfiles; pids=nodes(my_first_cluster)) do i
+  try
+    process(infiles[i], outfiles[i])
+    true # success
+  catch e
+    false # failure
+  end
+end
+
 ```
 
 The parallel code calculates the sum of the ranks of the processes using the _Reduce_ collective operation of _MPI.jl_, and stores the results in the global variable _rank_sum_ of the root process, with rank 0. Then, this value is fetched by the program and assigned to the _result_ variable using ```@fetchfrom```. For that, the ```ranks``` function is used to discover the _pid_ of the root process.
