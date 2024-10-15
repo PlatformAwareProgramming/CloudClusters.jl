@@ -29,10 +29,10 @@ In what follows, we teach how to create peer-workers clusters and deploy computa
 ## How to create a cluster 
 
 _CloudClusters.jl_ offers six primitives, as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. 
-They are explained in the following paragraphs, with a simple example you can try to reproduce in a REPL session. 
+They are explained in the following paragraphs, with a simple example the reader can reproduce in a REPL session. 
 It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available on an accessible path.
 
-First, let us examine a simple scenario where a user wants to create a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. To accomplish this, the user must use the __@cluster__ macro, passing the number of nodes and instance type as arguments.
+First, let's try a simple scenario where a user creates a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. To do this, the user uses the __@cluster__ macro, passing the number of nodes and instance type as arguments. 
 
 ```julia
 using CloudClusters
@@ -42,30 +42,30 @@ my_first_cluster_contract = @cluster  node_count => 4  node_machinetype => EC2Ty
 
 ```
 
-The __@cluster__ macro will not instantiate the cluster yet. It will create a _cluster contract_, from which the user can create one or more clusters. 
+Using __@cluster__ does not instantiate the cluster yet. It creates a _cluster contract_ and returns a handle for it. The _contract handle_ is stored in the _my_first_cluster_contract_ variable, through which the user can create one or more clusters later. 
 
-The variable ```my_first_cluster_contract``` receives a _contract handle_. In _CloudClusters.jl_, a handle is a symbol comprising 15 randomly calculated lower- and upper-case alphabetic characters (e.g.,```:FXqElAnSeTEpQAm``` ). Since they are symbols, they are printable and may be used directly to refer to a cluster contract.
+> [!NOTE]
+> In _CloudClusters.jl_, a handle is a symbol comprising 15 randomly calculated lower- and upper-case alphabetic characters (e.g.,```:FXqElAnSeTEpQAm``` ). Since they are symbols, they are printable and may be used directly to refer to a cluster contract.
 
-A cluster contract must be resolved to be able to instantiate clusters from it. For that, the user needs to apply __@resolve__, as below:
+A cluster contract must be resolved before creating clusters from it. For that, the user needs to apply __@resolve__ to the contract handle, as below:
 
 ```julia
 @resolve my_first_cluster_contract
 ```
 
-The __@resolve__ macro will trigger a resolution procedure to calculate which instance type provided by a supported IaaS provider satisfies the contract. For this simple contract, the response is explicitly specified in the exemplified contract, i.e., the ___t3.xlarge___ instance type offered by AWS EC2. For more advanced contract specifications, where cluster contract resolution shows its power, the reader can read the section [Working with cluster contracts (the advanced way)](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts-the-advanced-way).
+The __@resolve__ macro triggers a resolution procedure to calculate which instance type offered by one of the supported IaaS providers satisfies the contract. For ```my_first_cluster_contract```, the response is explicitly specified in the contract, i.e., the ___t3.xlarge___ instance type offered by AWS EC2. For more advanced contract specifications, where cluster contract resolution shows its power, the reader can read the section [Working with cluster contracts](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts).
 
 A cluster may be instantiated by using ___@deploy___:
 
 ```julia
-my_first_cluster = @deploy my_first_cluster
+my_first_cluster = @deploy my_first_cluster_contract
 ```
 
-The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AWS EC2 instances, returning a cluster handle in the ```my_first_cluster``` variable. 
+The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AWS EC2 instances, returning a cluster handle that is assigned to the ```my_first_cluster``` variable. 
 
->[!WARNING]
->The process of creating VM instances (cluster nodes) until they are ready to be connected to the processes via _Distributed.jl_, can be lengthy, depending on the provider.
+After __@deploy__, a set of _worker processes_ is created, one at each cluster node, whose _pids_ may be inspected using the ___nodes___ function, passing the cluster handle as an argument. 
 
-After __@deploy__, for each cluster node, a _worker process_ is created, whose _pids_ may be inspected using the ___nodes___ function, passing the cluster handle as an argument. In the following code, the user fetches the _pids_ of the processes at the cluster nodes. 
+In the following code, the user fetches the _pids_ of the processes at the cluster nodes. 
 
 ```julia-repl
 julia> nodes(my_first_cluster)
@@ -76,41 +76,11 @@ julia> nodes(my_first_cluster)
 5
 ```
 
-Optionally, the ___@deploy__ macro accepts a set of configuration parameters. An example of using them is shown below:
- 
+As shown in the example, the default number of worker processes per cluster node is 1. However, the user may create N worker processes per cluster node using the ```node_process_count => N``` parameter in the contract specification. In the following contract, the number of worker processes per cluster node is set to 2.
+
 ```julia
-my_first_cluster = @deploy(my_first_cluster,
-                           image_id => "ami-07f6c5b6de73ce7ae",
-                           user => "ubuntu",
-                           keyname => "mykey")
+@cluster  node_count => 4  node_process_count=>2  node_machinetype => EC2Type_T3_xLarge
 ```
-
-The following configuration parameters set up the SSH connections to peer nodes of peer-workers clusters and the master node of master-worker clusters:
-* __user__::```String```
-* __keyname__::```String```
-* __sshflags__::```String```
-* __tunneled__::```Bool```
-
-The following configuration parameters apply to cluster nodes of any cluster type:
-* __exename__::```String```
-* __exeflags__::```String```
-* __directory__::```String```
-
-The following configuration parameters apply to worker nodes of master-worker clusters:
-* __threadlevel__::```String```
-* __mpiflags__::```String```
-
-The last set of configuration parameters depends on the IaaS provider selected through __@resolve__. For AWS EC2, they are:
-* __imageid__::```String```
-* __subnet_id__::```String```
-* __placement_group__::```String```
-* __security_group_id__::```String```
-
-
-
-If not informed, default configuration parameters independent of an IaaS provider are read from a _CCconfig.toml_ file, while the AWS EC2 dependent ones are read from _CCconfig.EC2.toml_. The name and location of provider-specific configuration files depend on the provider.
-
-
 
 
 ## Running computations on the cluster
@@ -388,3 +358,41 @@ result = @fetchfrom ranks(my_first_cluster0)[0] rank_sum
 ```
 
 The parallel code calculates the sum of the ranks of the processes using the _Reduce_ collective operation of _MPI.jl_, and stores the results in the global variable _rank_sum_ of the root process, with rank 0. Then, this value is fetched by the program and assigned to the _result_ variable using ```@fetchfrom```. For that, the ```ranks``` function is used to discover the _pid_ of the root process.
+
+### Configuration parameters
+
+Optionally, ___@deploy__ accepts a set of configuration parameters. An example of using them is shown below:
+ 
+```julia
+my_first_cluster = @deploy(my_first_cluster,
+                           image_id => "ami-07f6c5b6de73ce7ae",
+                           user => "ubuntu",
+                           keyname => "mykey")
+```
+
+There are currently four categories of configuration parameters, described in the following paragraphs.
+
+The following configuration parameters set up the SSH connections to peer nodes of peer-workers clusters and the master node of master-worker clusters:
+* __user__::```String```
+* __keyname__::```String```
+* __sshflags__::```String```
+* __tunneled__::```Bool```
+
+The following configuration parameters apply to cluster nodes of any cluster type:
+* __exename__::```String```
+* __exeflags__::```String```
+* __directory__::```String```
+
+The following configuration parameters apply to worker nodes of manager-workers clusters:
+* __threadlevel__::```String```
+* __mpiflags__::```String```
+
+The last set of configuration parameters depends on the IaaS provider selected through __@resolve__. For AWS EC2, they are:
+* __imageid__::```String```
+* __subnet_id__::```String```
+* __placement_group__::```String```
+* __security_group_id__::```String```
+
+
+
+If not informed, default configuration parameters independent of an IaaS provider are read from a _CCconfig.toml_ file, while the AWS EC2 dependent ones are read from _CCconfig.EC2.toml_. The name and location of provider-specific configuration files depend on the provider.
