@@ -3,14 +3,14 @@
 
 # CloudClusters.jl
 
-_A package for creating, using, and managing the lifecycle of cloud-based clusters deployed at the infrastructure of IaaS providers._
+_A package for creating, using, and managing cloud-based clusters deployed at the infrastructure of IaaS providers._
 
 > [!NOTE]
-> _Currently, it only supports [EC2](https://aws.amazon.com/ec2/). You can ask us about the progress with [GCP](https://cloud.google.com/) and [Azure](https://azure.microsoft.com/)._ Collaborators are welcome.
+> _Currently, it only supports [EC2](https://aws.amazon.com/ec2/). Those who are interested can ask us about the progress with [GCP](https://cloud.google.com/) and [Azure](https://azure.microsoft.com/)._ Collaborators are welcome.
 
 ## Target users
 
-_CloudClusters.jl_ targets users of the Julia programming language who want to take advantage of on-demand access to cutting-edge computing resources offered by IaaS providers to meet high-performance computing (HPC) requirements of applications of their interest.
+_CloudClusters.jl_ targets users of the Julia programming language who need on-demand access to cutting-edge computing resources offered by IaaS cloud providers to meet high-performance computing (HPC) requirements of applications of their interest.
    
 ## Pre-requisites
 
@@ -19,16 +19,17 @@ _CloudClusters.jl_ targets users of the Julia programming language who want to t
 
 # Tutorial
 
-In what follows, we show a tutorial on using _CloudClusters.jl_, divided into two parts: _basic use_ and _advanced use_. The tutorial on basic use will teach the reader how to create and manage the lifecycle of ___peer-workers___ clusters, i.e. clusters comprising a set of homogeneous VM instances deployed in the infrastructure of a given IaaS cloud provider. In turn, the tutorial on advanced use will provide a deeper discussion about _cluster contracts_ and how to deploy ___manager-workers___ clusters, comprising a manager node and a set of homogenous worker nodes. Manager-workers clusters allow the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations.
+In what follows, we'd like to show a tutorial on using _CloudClusters.jl_, divided into two parts: _basic use_ and _advanced use_. The basic tutorial teaches the reader how to create and deploy computations on ___peer-workers___ clusters, comprising a set of homogeneous VM instances deployed in the infrastructure of an IaaS cloud provider. In turn, the advanced tutorial provides a deeper discussion about _cluster contracts_ and how to use ___manager-workers___ clusters, which comprise a manager node and a set of homogenous worker nodes only accessible through the manager node. Manager-workers clusters enable multicluster computations, promoting the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations, where the frequency and volume of communication between processes, as interacting peers, are high.
 
 # Basic use 
 
-We assume that the authentication to the IaaS provider is correctly configured in the environment where the Julia REPL session or standalone program will execute. 
-In what follows, we teach how to create clusters and deploy computations on them using _Distributed.jl_ primitives.
+We assume that the authentication to the IaaS provider is correctly configured in the environment where the Julia REPL session or program will execute. 
+In what follows, we teach how to create peer-workers clusters and deploy computations on them using _Distributed.jl_ primitives.
 
 ## How to create a cluster 
 
-_CloudClusters.jl_ offers the following six primitives, implemented as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. They are explained in the following paragraphs, with a simple example you can try to reproduce in a REPL session. 
+_CloudClusters.jl_ offers six primitives, as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. 
+They are explained in the following paragraphs, with a simple example you can try to reproduce in a REPL session. 
 It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available on an accessible path.
 
 First, let us examine a simple scenario where a user wants to create a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. To accomplish this, the user must use the __@cluster__ macro, passing the number of nodes and instance type as arguments.
