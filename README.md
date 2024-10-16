@@ -386,7 +386,7 @@ The parallel code calculates the sum of the ranks of the processes using the _Re
 
 ### Configuration parameters
 
-The ___@deploy__ operation accepts a set of configuration parameters. An example of using them is shown below:
+There is a set of configuration parameters for the proper instantiation of clusters, whose default values are specified in the _CCconfig.toml_ file. The user may override the default values by passing configuration parameters through ___@cluster___ and ___@deploy___ operations. Configuration parameters informed through a ___@cluster___ operation are valid for all clusters instantiated from the created contract. In turn, when informed through a ___@deploy___ operation, they are valid only for the instantiated cluster. For example, the following code sets up the ```image_id```, ```user```, and ```keyname``` parameters in the instantiation of a cluster:
  
 ```julia
 my_first_cluster = @deploy(my_first_cluster,
@@ -395,8 +395,7 @@ my_first_cluster = @deploy(my_first_cluster,
                            keyname => "mykey")
 ```
 
-There are currently four categories of configuration parameters, described in the following paragraphs.
-
+Currently, there are four categories of configuration parameters. They are described in the following paragraphs.
 
 The following configuration parameters set up the SSH connections to peer nodes of peer-workers clusters and the master node of master-worker clusters:
 * __user__::```String```
@@ -413,7 +412,7 @@ The following configuration parameters apply to worker nodes of manager-workers 
 * __threadlevel__::```String```
 * __mpiflags__::```String```
 
-The last set of configuration parameters depends on the IaaS provider selected through __@resolve__. For AWS EC2, they are:
+The last set of configuration parameters depends on the IaaS provider selected through __@resolve__. For AWS , they are:
 * __imageid__::```String```
 * __subnet_id__::```String```
 * __placement_group__::```String```
