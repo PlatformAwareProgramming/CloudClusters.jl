@@ -386,14 +386,19 @@ The parallel code calculates the sum of the ranks of the processes using the _Re
 
 ### Configuration parameters
 
-There is a set of configuration parameters for the proper instantiation of clusters, whose default values are specified in the _CCconfig.toml_ file. The user may override the default values by passing configuration parameters through ___@cluster___ and ___@deploy___ operations. Configuration parameters informed through a ___@cluster___ operation are valid for all clusters instantiated from the created contract. In turn, when informed through a ___@deploy___ operation, they are valid only for the instantiated cluster. For example, the following code sets up the ```image_id```, ```user```, and ```keyname``` parameters in the instantiation of a cluster:
+Configuration parameters exist for the proper instantiation of clusters, whose default values are specified in the _CCconfig.toml_ file. The user may override the default values by passing configuration parameters through ___@cluster___ and ___@deploy___ operations. For example:
  
 ```julia
+my_first_cluster_contract = @cluster(node_count => 4,
+                                     node_machinetype => EC2Type_T3_xLarge,
+                                     image_id => "ami-07f6c5b6de73ce7ae")
+
 my_first_cluster = @deploy(my_first_cluster,
-                           image_id => "ami-07f6c5b6de73ce7ae",
                            user => "ubuntu",
                            keyname => "mykey")
 ```
+
+In the above code, ```image_id``` is used to specify that the EC2 image identified by ```ami-07f6c5b6de73ce7ae``` must be used when creating clusters from the contract referred by the _my_first_cluster_contract_ variable. On the other hand, ```user``` and ```mykey``` will be used to access the nodes of the cluster referred by _my_first_cluster_. For example, the image ```ami-07f6c5b6de73ce7ae``` may provide a set of predefined users with different privileges or using different features such image offers.
 
 Currently, there are four categories of configuration parameters. They are described in the following paragraphs.
 
@@ -419,5 +424,3 @@ The last set of configuration parameters depends on the IaaS provider selected t
 * __security_group_id__::```String```
 
 
-
-If not informed, default configuration parameters independent of an IaaS provider are read from a _CCconfig.toml_ file, while the AWS EC2 dependent ones are read from _CCconfig.EC2.toml_. The name and location of provider-specific configuration files depend on the provider.
