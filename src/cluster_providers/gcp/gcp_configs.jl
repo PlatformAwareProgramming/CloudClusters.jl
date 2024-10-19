@@ -1,24 +1,15 @@
 
 
-function readCCConfig(_::Type{GoogleCloud})
-    readCCConfig("CCconfig.GCP.toml")
-end
-
 function loadDefaults(_::Type{GoogleCloud}, ccconfig_dict)
 
     gcp_defaults_dict = Dict()
 
-    gcp_defaults_dict[:imageid] = ccconfig_dict["defaults"]["imageid"]
-     
-    if haskey(ccconfig_dict["defaults"],"subnet_id")
-        gcp_defaults_dict[:subnet_id] = ccconfig_dict["defaults"]["subnet_id"]
+    for (k,v) in defaults_dict[Provider]
+        gcp_defaults_dict[k] = v
     end
-    
-    if haskey(ccconfig_dict["defaults"],"security_group_id")
-        gcp_defaults_dict[:security_group_id] = ccconfig_dict["defaults"]["security_group_id"]
-    end
-    if haskey(ccconfig_dict["defaults"],"placement_group")
-        gcp_defaults_dict[:placement_group] = ccconfig_dict["defaults"]["placement_group"] 
+
+    for (k,v) in ccconfig_dict["gcp"]
+        gcp_defaults_dict[k |> Symbol] = v
     end
 
     return gcp_defaults_dict

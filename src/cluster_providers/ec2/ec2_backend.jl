@@ -38,21 +38,6 @@ using Sockets
 @service Efs
 
 #=
-Como utilizar. Escolher uma das quatro opções abaixo.
-cluster = ManagerWorkersWithoutSharedFS("pargocad", "c6i.large", "c6i.large", 4, "jmhal", "ami-04b70fa74e45c3917", nothing, nothing)
-cluster = PeersWorkersWithoutSharedFS("pargocad", "c6i.large", 4, "jmhal", "ami-04b70fa74e45c3917", nothing, nothing)
-cluster = ManagerWorkersWithSharedFS("pargocad", "c6i.large", "c6i.large", 4,"jmhal", "ami-04b70fa74e45c3917", nothing, nothing)
-cluster = PeersWorkersWithSharedFS("pargocad", "c6i.large", 4, "jmhal", "ami-04b70fa74e45c3917", nothing, nothing)
-
-Depois:
-cluster_handle = create_cluster(cluster)
-get_ips_instance(cluster_handle.cluster_nodes["peer1"]) ou get_ips_instance(cluster_handle.cluster_nodes["headnode"]) para pegar os IPs.
-
-Finalmente:
-delete_cluster(cluster_handle)
-=#
-
-#=
 Estrutura para Armazenar as informações e função de criação do cluster
 =#
 
@@ -61,7 +46,7 @@ mutable struct SharedFSInfo
     file_system_ip::String
 end
 
-mutable struct ManagerWorkersCluster <: ManagerWorkers #Cluster
+mutable struct EC2ManagerWorkers <: ManagerWorkers #Cluster
     provider::Type{AmazonEC2}
     name::String
     instance_type_master::String
@@ -83,7 +68,7 @@ mutable struct ManagerWorkersCluster <: ManagerWorkers #Cluster
 end
 
 
-mutable struct PeerWorkersCluster <: PeerWorkers # Cluster
+mutable struct EC2PeerWorkers <: PeerWorkers # Cluster
     provider::Type{AmazonEC2}
     name::String
     instance_type::String
@@ -101,6 +86,25 @@ mutable struct PeerWorkersCluster <: PeerWorkers # Cluster
     features::Dict{Symbol, Any}
 end
 
+mutable struct EC2PeerWorkersMPI <: PeerWorkersMPI # Cluster
+    provider::Type{AmazonEC2}
+    name::String
+    instance_type::String
+    count::Int
+    key_name::String
+    image_id::String
+    subnet_id::Union{String, Nothing}
+    placement_group::Union{String, Nothing}
+    auto_pg::Bool
+    security_group_id::Union{String,Nothing}
+    auto_sg::Bool
+    environment::Union{SharedFSInfo, Nothing}
+    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
+    shared_fs::Bool
+    features::Dict{Symbol, Any}
+end
+
+
 function ec2_create_cluster(cluster::Cluster)
  
     if cluster.shared_fs
@@ -115,13 +119,7 @@ function ec2_create_cluster(cluster::Cluster)
     cluster
 end
 
-function get_ips(_::Type{AmazonEC2}, cluster::Cluster)
-    ips = Dict()
-    for (node, id) in cluster.cluster_nodes
-         ips[node] = ec2_get_ips_instance(id) 
-    end
-    ips
-end
+
 
 function ec2_get_ips_instance(instance_id::String)
     public_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
@@ -129,7 +127,7 @@ function ec2_get_ips_instance(instance_id::String)
     Dict(:public_ip => public_ip, :private_ip => private_ip)
 end
 
-function ec2_delete_cluster(cluster::Cluster)
+function ec2_terminate_cluster(cluster::Cluster)
     ec2_delete_instances(cluster.cluster_nodes) 
     for instance in cluster.cluster_nodes
         status = ec2_get_instance_status(instance[2])
@@ -238,7 +236,7 @@ systemctl restart ssh
    [internal_key_name, user_data]
 end
 
-function ec2_create_params(cluster::ManagerWorkersCluster, user_data_base64)
+function ec2_create_params(cluster::ManagerWorkers, user_data_base64)
    params_master = Dict(
         "InstanceType" => cluster.instance_type_master,
         "ImageId" => cluster.image_id_master,
@@ -283,7 +281,7 @@ function ec2_create_params(cluster::ManagerWorkersCluster, user_data_base64)
     params_master, params_workers
 end
  
-function ec2_create_params(cluster::PeerWorkersCluster, user_data_base64)
+function ec2_create_params(cluster::PeerWorkers, user_data_base64)
     params = Dict(
         "InstanceType" => cluster.instance_type,
         "ImageId" => cluster.image_id,
@@ -379,7 +377,7 @@ Cria as instâncias.
 =#
 
 
-function ec2_create_instances(cluster::ManagerWorkersCluster)
+function ec2_create_instances(cluster::ManagerWorkers)
     cluster_nodes = Dict()
 
     # Configurando a conexão SSH.
@@ -430,7 +428,7 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
     cluster_nodes
 end
 
-function ec2_create_instances(cluster::PeerWorkersCluster)
+function ec2_create_instances(cluster::PeerWorkers)
     cluster_nodes = Dict()
 
     # Configurando a conexão SSH.
@@ -477,23 +475,27 @@ end
 
 function ec2_await_status(cluster_nodes, status)
     for nodeid in keys(cluster_nodes)
+        print("Waiting for $nodeid to be $status ...")
         while ec2_get_instance_status(cluster_nodes[nodeid]) != status
-            println("Waiting for $nodeid to be $status...")
+            print(".")
             sleep(5)
         end
+        println("successfull")
     end
 end
 
 function ec2_await_check(cluster_nodes, status)
     for nodeid in keys(cluster_nodes)
+        print("Waiting for $nodeid to be $status ...")
         while ec2_get_instance_check(cluster_nodes[nodeid]) != status
-            println("Waiting for $nodeid to be $status...")
+            print(".")
             sleep(5)
         end
+        println("successfull")
     end
 end
 
-function cluster_status(_::Type{AmazonEC2}, cluster::Cluster, status_list)
+function ec2_cluster_status(cluster::Cluster, status_list)
     cluster_nodes = cluster.cluster_nodes
     for nodeid in keys(cluster_nodes)
         !(ec2_get_instance_status(cluster_nodes[nodeid]) in status_list) && return false
@@ -603,30 +605,30 @@ end
 ec2_can_interrupt(cluster::Cluster) = ec2_cluster_isrunning(cluster)
 
 # Interrupt cluster instances. If someone is not in "running" state, raise an exception.
-function interrupt_cluster(_::Type{AmazonEC2}, cluster::Cluster)
+function ec2_interrupt_cluster(cluster::Cluster)
     ec2_stop_instances(cluster)
     ec2_await_status(cluster.cluster_nodes, "stopped")
 end
 
-ec2_can_resume(cluster::Cluster) = cluster_status(AmazonEC2, cluster, ["stopped"])
+ec2_can_resume(cluster::Cluster) = ec2_cluster_status(cluster, ["stopped"])
 
 # Start interrupted cluster instances or reboot running cluster instances.
 # All instances must be in "interrupted" or "running" state.
 # If some instance is not in "interrupted" or "running" state, raise an exception.
-function resume_cluster(_::Type{AmazonEC2}, cluster::Cluster)
+function ec2_resume_cluster(cluster::Cluster)
     ec2_start_instances(cluster)
     ec2_await_status(cluster.cluster_nodes, "running")
     ec2_await_check(cluster.cluster_nodes, "ok")
     for instance in keys(cluster.cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster.cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
         try_run(`ssh -i /tmp/$(cluster.name) -o StrictHostKeyChecking=no ubuntu@$public_ip uptime`)
-    end    
+    end
 end
 
 
 # Check if the cluster instances are running or interrupted.
-ec2_cluster_isrunning(cluster::Cluster) = cluster_status(AmazonEC2, cluster, ["running"]) && cluster_ready(AmazonEC2, cluster) 
-ec2_cluster_isstopped(cluster::Cluster) = cluster_status(AmazonEC2, cluster, ["stopped"])
+ec2_cluster_isrunning(cluster::Cluster) = ec2_cluster_status(cluster, ["running"]) && cluster_ready(AmazonEC2, cluster) 
+ec2_cluster_isstopped(cluster::Cluster) = ec2_cluster_status(cluster, ["stopped"])
 
 function ec2_stop_instances(cluster::Cluster)
     for id in values(cluster.cluster_nodes)
@@ -638,4 +640,12 @@ function ec2_start_instances(cluster::Cluster)
     for id in values(cluster.cluster_nodes)
         Ec2.start_instances(id)
     end
+end
+
+function ec2_get_ips(cluster::Cluster)
+    ips = Dict()
+    for (node, id) in cluster.cluster_nodes
+         ips[node] = ec2_get_ips_instance(id) 
+    end
+    ips
 end

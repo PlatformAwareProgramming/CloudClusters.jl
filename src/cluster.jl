@@ -27,6 +27,7 @@
 abstract type Cluster end
 abstract type ManagerWorkers <: Cluster end   # 1 nó master (head node) e N nós de computação
 abstract type PeerWorkers <: Cluster end      # sem distinção de nó master
+abstract type PeerWorkersMPI <: PeerWorkers end
 
 
 cluster_contract = Dict()
@@ -50,10 +51,6 @@ function cluster_create(args...)
 end
 
 
-function forget_cluster(contract_handle)
-    delete!(cluster_contract, contract_handle) 
-end
-
 #cluster_reconnect_cache = Dict()
 
 function cluster_list(;from = DateTime(0), cluster_type = :AnyCluster)
@@ -69,7 +66,6 @@ function cluster_list(;from = DateTime(0), cluster_type = :AnyCluster)
     for cluster_file in path_contents
         if occursin(r"\s*.cluster", cluster_file)
             cluster_data = load_cluster(cluster_file; from=from, cluster_type=cluster_type)
-            delete!(cluster_data, :info)
             !isempty(cluster_data) && push!(result, cluster_data)
          end
     end

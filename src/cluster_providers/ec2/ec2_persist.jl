@@ -1,26 +1,6 @@
-#=
-mutable struct ManagerWorkersCluster <: Cluster
-    name::String
-    instance_type_master::String
-    instance_type_worker::String
-    count::Int
-    key_name_master::String
-    key_name_worker::String
-    image_id_master::String
-    image_id_worker::String
-    subnet_id::Union{String, Nothing}
-    placement_group::Union{String, Nothing}
-    auto_pg::Bool
-    security_group_id::Union{String, Nothing}
-    auto_sg::Bool
-    environment::Union{SharedFSInfo, Nothing}
-    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-    shared_fs::Bool
-end 
-=#
 
 
-function cluster_save(_::Type{AmazonEC2}, cluster::ManagerWorkersCluster)
+function ec2_cluster_save(cluster::ManagerWorkers)
 
     contents = Dict()
 
@@ -59,7 +39,7 @@ function cluster_save(_::Type{AmazonEC2}, cluster::ManagerWorkersCluster)
 
 end
 
-function cluster_save(_::Type{AmazonEC2}, cluster::PeerWorkersCluster)
+function ec2_cluster_save(cluster::PeerWorkers)
 
     contents = Dict()
 
@@ -83,8 +63,6 @@ function cluster_save(_::Type{AmazonEC2}, cluster::PeerWorkersCluster)
     contents["cluster_nodes"] = cluster.cluster_nodes
     contents["cluster_features"] = cluster.features
 
-    @info cluster.name
-
     configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
 
     open(joinpath(configpath, string(cluster.name, ".cluster")), "w") do io
@@ -96,20 +74,8 @@ function cluster_save(_::Type{AmazonEC2}, cluster::PeerWorkersCluster)
 
 end
 
-function cluster_load(_::Type{AmazonEC2}, cluster_handle)
 
-    contents = TOML.parsefile(string(cluster_handle,".cluster"))
-
-    cluster_type = contents["type"] |> fetchtype
-    timestamp = contents["timestamp"]
-
-    r = cluster_load(AmazonEC2, cluster_type, cluster_handle, contents) 
-
-    return r, timestamp
-end
-
-
-function cluster_load(_::Type{AmazonEC2}, _::Type{ManagerWorkers}, cluster_handle, contents)
+function cluster_load(_::Type{AmazonEC2}, _::Type{<:ManagerWorkers}, cluster_handle, contents)
 
     instance_type_master = contents["instance_type_master"]
     instance_type_worker = contents["instance_type_worker"]
@@ -133,12 +99,18 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{ManagerWorkers}, cluster_handl
     cluster_features = contents["cluster_features"] |> adjusttypefeatures
     shared_fs = contents["shared_fs"]
 
-    cluster = ManagerWorkersCluster(AmazonEC2, string(cluster_handle), instance_type_master, instance_type_worker, count, 
+    cluster = EC2ManagerWorkers(AmazonEC2, string(cluster_handle), instance_type_master, instance_type_worker, count, 
                                     key_name_master, key_name_worker, image_id_master, image_id_worker, 
                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                     environment, cluster_nodes, shared_fs, cluster_features)
 
-    return cluster
+    if ec2_cluster_status(cluster, ["running", "stopped"])
+        ec2_cluster_info[cluster_handle] = cluster
+        return cluster.features
+    else
+        ec2_delete_cluster(cluster_handle)
+        return nothing
+    end
 end
 
 
@@ -153,7 +125,7 @@ function adjusttypefeatures(_cluster_features)
     return cluster_features
 end
 
-function cluster_load(_::Type{AmazonEC2}, _::Type{PeerWorkers}, cluster_handle, contents)
+function cluster_load(_::Type{AmazonEC2}, _::Type{<:PeerWorkers}, cluster_handle, contents)
 
     instance_type = contents["instance_type"]
     count =  contents["count"]
@@ -174,10 +146,23 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{PeerWorkers}, cluster_handle, 
     cluster_features = contents["cluster_features"] |> adjusttypefeatures
     shared_fs = contents["shared_fs"]
 
-    cluster = PeerWorkersCluster(AmazonEC2, string(cluster_handle), instance_type, count, 
+    cluster = EC2PeerWorkers(AmazonEC2, string(cluster_handle), instance_type, count, 
                                     key_name, image_id, 
                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                     environment, cluster_nodes, shared_fs, cluster_features)
 
-    return cluster
+    if ec2_cluster_status(cluster, ["running", "stopped"])
+        ec2_cluster_info[cluster_handle] = cluster
+        return cluster.features
+    else
+        ec2_delete_cluster(cluster_handle)
+        return nothing
+    end
 end
+
+function ec2_delete_cluster(cluster_handle)
+    configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
+    rm(joinpath(configpath, "$cluster_handle.cluster"))
+end
+
+

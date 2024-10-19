@@ -23,6 +23,7 @@ include("cluster_providers/gcp/gcp_configs.jl")
 include("cluster_providers/gcp/gcp_backend.jl")
 include("cluster_providers/gcp/gcp_resolve.jl")
 include("cluster_providers/gcp/gcp_deploy.jl")
+include("cluster_providers/local/local_configs.jl")
 include("cluster_providers/local/local_resolve.jl")
 include("cluster_providers/local/local_deploy.jl")
 
@@ -43,7 +44,7 @@ export cluster_create, @cluster,
        nodes
 
 # Cluster types
-export ManagerWorkers, PeerWorkers
+export ManagerWorkers, PeerWorkers, PeerWorkersMPI
 
 # Feature types
 export PlatformAware, select_instances, @select

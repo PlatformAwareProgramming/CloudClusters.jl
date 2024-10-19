@@ -17,8 +17,8 @@ function deploy_cluster(type::Type{GoogleCloud}, mode::Type{CreateMode}, feature
 
 end
 
-function launch_processes(_::Type{GoogleCloud}, cluster_features, cluster_type, ips, user_id)
-    launch_processes_ssh(cluster_features, cluster_type, ips, user_id)
+function launch_processes(_::Type{GoogleCloud}, cluster_type, cluster_handle, ips, user_id)
+
 end
 
 #==== INTERRUPT CLUSTER ====#

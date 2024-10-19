@@ -1,7 +1,5 @@
 
-function readCCConfig(_::Type{CloudProvider})
-    readCCConfig("CCconfig.toml")
-end
+abstract type Localhost <: OnPremises end
 
 function readCCConfig(config_file::String)
 
@@ -38,7 +36,7 @@ function readCCConfig(config_file::String)
             end
          end
     
-    @info "=====> $ccconfig_toml"
+    #@info "=====> $ccconfig_toml"
     if isnothing(ccconfig_toml)
         @error "The configuration file ($config_file) was not found."
         return nothing
@@ -47,7 +45,7 @@ function readCCConfig(config_file::String)
     TOML.parse(ccconfig_toml)    
 end
 
-function loadDefaults(_::Type{CloudProvider}, ccconfig_dict)
+function loadDefaults(_::Type{Provider}, ccconfig_dict)
 
     defaults_dict = Dict()
 
@@ -64,18 +62,18 @@ function loadDefaults(_::Type{CloudProvider}, ccconfig_dict)
     return defaults_dict
 end
 
-providers = [CloudProvider, AmazonEC2, GoogleCloud]
+providers = [Provider, Localhost, AmazonEC2, GoogleCloud]
 
+defaults_dict = Dict()
 
 function load!()
+    ccconfig_dict = readCCConfig("CCconfig.toml")
     for provider_type in providers
-        ccconfig_dict = readCCConfig(provider_type) 
         if !isnothing(ccconfig_dict)
-           defaults_dict[provider_type] = loadDefaults(provider_type, ccconfig_dict) 
+            defaults_dict[provider_type] = loadDefaults(provider_type, ccconfig_dict) 
         else
-           @error "Default configuration of $provider_type is empty"
+            @error "Default configuration of $provider_type is empty"
         end
     end
 end
 
-defaults_dict = Dict()

@@ -20,15 +20,19 @@ function deploy_cluster(_::Type{Localhost}, cluster_type,  _::Type{CreateMode}, 
 
     count = get(cluster_features, :node_count, 1)
 
-    user_id = ENV["USER"]
     ips = build_ips(cluster_type, count) 
 
-    local_cluster_info[cluster_handle] = (ips, user_id)
+    local_cluster_info[cluster_handle] = (cluster_type, cluster_features, ips)
 
-    return ips, user_id
+    return nothing
 end
 
-function build_ips(_::Type{ManagerWorkers}, count)
+function get_ips(_::Type{Localhost}, cluster_handle) 
+    _, _, ips = local_cluster_info[cluster_handle]
+    return ips
+end
+
+function build_ips(_::Type{<:ManagerWorkers}, count)
     ips = Dict()
     ips[:master] = Dict(:public_ip => "127.0.0.1", :private_ip => "127.0.0.1")
     for i in 0:count-1
@@ -37,7 +41,7 @@ function build_ips(_::Type{ManagerWorkers}, count)
     return ips
 end
 
-function build_ips(_::Type{PeerWorkers}, count)
+function build_ips(_::Type{<:PeerWorkers}, count)
     ips = Dict()
     for i in 0:count-1
         ips[Symbol(string("peer", i))] = Dict(:public_ip => "127.0.0.1", :private_ip => "127.0.0.1")
@@ -45,8 +49,14 @@ function build_ips(_::Type{PeerWorkers}, count)
     return ips
 end
 
-function launch_processes(_::Type{Localhost}, cluster_features, cluster_type, ips, user_id)
-    launch_processes_local(cluster_features, cluster_type, ips, user_id)
+function launch_processes(_::Type{Localhost}, cluster_type::Type{<:Cluster}, cluster_handle, ips)
+    _, cluster_features, _ = local_cluster_info[cluster_handle]
+    launch_processes_local(cluster_features, cluster_type, ips)
+end
+
+function launch_processes(_::Type{Localhost}, cluster_type::Type{<:PeerWorkersMPI}, cluster_handle, ips)
+    _, cluster_features, _ = local_cluster_info[cluster_handle]
+    launch_processes_mpi(cluster_features, cluster_type, ips)
 end
 
 #==== INTERRUPT CLUSTER ====#
@@ -58,7 +68,8 @@ end
 #==== CONTINUE CLUSTER ====#
 
 function resume_cluster(type::Type{Localhost}, cluster_handle)
-    return local_cluster_info[cluster_handle]
+    _, _, ips = local_cluster_info[cluster_handle]
+    return ips
 end
 
 #==== TERMINATE CLUSTER ====#
