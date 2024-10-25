@@ -23,7 +23,7 @@ Even though _CloudClusters.jl_ currently only supports AWS EC2, future versions 
 
 For creating Manager-Workers clusters, the multilevel extension of _Distributed.jl_ is necessary, but only for the access node of the cluster, where the so-called _driver processes_, launched by the master process at the REPL/program and responsible for launching the worker processes across computing nodes of the cluster, will be running. 
 
-So, only users who need to develop customized images to instantiate cluster nodes must be concerned with adapting the Julia installation for the extended _Distributed.jl_ version, and only if such an image is intended to be used with Master-Worker clusters.
+So, only users who need to develop customized images to instantiate cluster nodes must be concerned with adapting the Julia installation for the extended _Distributed.jl_ version, and only if such an image is intended to be used for master nodes of Master-Worker clusters.
 
 > [!NOTE]
 > The multilevel extension to _Distributed.jl_ is hosted at https://github.com/PlatformAwareProgramming/Distributed.jl, as a fork of the original _Distributed.jl_ repository. The README of the _Distributed.jl_ repository explains [how to use development versions in a current Julia installation](https://github.com/JuliaLang/Distributed.jl#using-development-versions-of-this-package). In case of difficulties, the user may contact the developers of _CloudClusters.jl_. For more information about the multilevel extension of _Distributed.jl_, read the SSCAD'2024 paper [Towards multicluster computations with Julia](https://sol.sbc.org.br/index.php/sscad/article/view/31004).
