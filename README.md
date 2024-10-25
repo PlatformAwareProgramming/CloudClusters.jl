@@ -52,7 +52,7 @@ The IaaS provider credentials must be properly configured in the environment whe
 
 _CloudClusters.jl_ offers six primitives, as _macros_, to create and manage the lifecycle of a cluster. They are: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, and __@resume__. 
 
-First, let's try a simple scenario where a user creates a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. In the simpler way to do this, the user uses the __@cluster__ macro, passing the number of nodes and instance type as arguments. 
+First, let's try a simple scenario where a user creates a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. In the simplest way to do this, the user applies the __@cluster__ macro to the number of nodes and instance type, as arguments. 
 
 ```julia
 using CloudClusters
