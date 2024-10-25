@@ -23,16 +23,16 @@ Even though _CloudClusters.jl_ currently only supports AWS EC2, future versions 
 
 ### Multilevel extension for _Distributed.jl_
 
-For creating Manager-Workers clusters, the multilevel extension of _Distributed.jl_ is necessary, but only for the access node of the cluster, where the so-called _driver processes_, launched by the master process at the REPL/program and responsible for launching the worker processes across computing nodes of the cluster, will be running. 
+For creating ___manager-workers___ clusters, the multilevel extension of _Distributed.jl_ is necessary, but only for the access node of the cluster, where the so-called _driver processes_, launched by the master process at the REPL/program and responsible for launching the worker processes across computing nodes of the cluster, will be running. 
 
-So, only users who need to develop customized images to instantiate cluster nodes must be concerned with adapting the Julia installation for the extended _Distributed.jl_ version, and only if such an image is intended to be used for master nodes of Master-Worker clusters.
+So, only users who need to develop customized images to instantiate cluster nodes must be concerned with adapting the Julia installation for the extended _Distributed.jl_ version, and only if an image is intended to be used for master nodes of ___manager-workers___ clusters.
 
 > [!NOTE]
 > The multilevel extension to _Distributed.jl_ is hosted at https://github.com/PlatformAwareProgramming/Distributed.jl, as a fork of [the original _Distributed.jl_ repository](https://github.com/JuliaLang/Distributed.jl). The README of _Distributed.jl_ explains [how to use development versions in a current Julia installation](https://github.com/JuliaLang/Distributed.jl#using-development-versions-of-this-package). In case of difficulties, the user may contact the developers of _CloudClusters.jl_. For more information about the multilevel extension of _Distributed.jl_, read the SSCAD'2024 paper [Towards multicluster computations with Julia](https://sol.sbc.org.br/index.php/sscad/article/view/31004).
 
 # Tutorial
 
-In what follows, we'd like to show a tutorial on using _CloudClusters.jl_, divided into two parts: _basic use_ and _advanced use_. The basic tutorial teaches the reader how to create and deploy computations on ___peer-workers___ clusters, comprising a set of homogeneous VM instances deployed in the infrastructure of an IaaS cloud provider. In turn, the advanced tutorial provides a deeper discussion about _cluster contracts_ and how to use ___manager-workers___ clusters, which comprise a manager node and a set of homogenous worker nodes only accessible through the manager node. Manager-workers clusters enable multicluster computations, promoting the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations, where the frequency and volume of communication between processes, as interacting peers, are high.
+In what follows, we'd like to show how _CloudClusters.jl_ works, as a tutorial with two parts: _basic use_ and _advanced use_. The basic tutorial teaches the reader how to create and deploy computations on ___peer-workers___ clusters, comprising a set of homogeneous VM instances deployed in the infrastructure of an IaaS cloud provider. In turn, the advanced tutorial provides a deeper discussion about _cluster contracts_ and how to use ___manager-workers___ clusters, which comprise a manager node and a set of homogenous worker nodes only accessible through the manager node. Manager-workers clusters enable multicluster computations, promoting the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations, where the frequency and volume of communication between processes, as interacting peers, are high.
 
 # Basic use 
 
