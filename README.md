@@ -197,7 +197,7 @@ julia> nodes(my_third_cluster)
 21
 ```
 
-The user may orchestrate the processing power of multiple clusters to execute computations of their interest, independent of their providers. This is _multicluster computations_. However, it is important to note that communication operations between processes placed at nodes of different clusters (inter-cluster communication), mainly when these clusters are deployed at different IaaS providers, must be used with care, only when strictly necessary and asynchronously, if possible, trying to overlap high communication overheads with useful computations.
+The user may orchestrate the processing power of multiple clusters to execute computations of their interest, independent of their providers. This is _multicluster computation_. However, it is important to note that communication operations between processes placed at nodes of different clusters (inter-cluster communication), mainly when these clusters are deployed at different IaaS providers, must be used with care, only when strictly necessary and asynchronously, if possible, trying to overlap high communication overheads with useful computations.
 
 ## Interrupting and resuming a cluster
 
@@ -240,7 +240,7 @@ After terminating, the cloud resources associated with the cluster are freed.
 
 ## How to reconnect to a non-terminated cluster
 
-If a cluster was not terminated in a previous execution of a standalone program or REPL session, the user may reconnect it using the ___@reconnect___ macro. For example:
+If a cluster was not terminated in a previous execution of a Julia program or REPL session, the user may reconnect it using the ___@reconnect___ macro. For example:
 
 ```julia
 @reconnect :FXqElAnSeTEpQAm
@@ -355,6 +355,7 @@ The worker processes perform the computation, while the entry process is respons
 > ERROR: On worker 2:
 > Only process 1 can add or remove workers
 > ```
+
 > The _CloudClusters.jl_ developers have developed a modified version of _Distributed.jl_ that remove this limitation, making possible to create hiearchies of Julia processes. This work is reported in the following paper:
 >
 > F. H. de Carvalho Junior and T. Carneiro. 2023. _Towards multicluster computations with Julia_. In XXV Symposium on High-Performance Computational Systems (SSCAD’2024) (São Carlos, SP). SBC, Porto Alegre, Brazil.
