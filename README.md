@@ -17,6 +17,14 @@ _CloudClusters.jl_ targets users of the Julia programming language who need on-d
 > [!NOTE]
 > UNDER CONSTRUCTION
 
+### Cloud providers' credentials
+
+Despite the fact that _CloudClusters.jl_ currently only supports AWS EC2, future versions plan to support multiple IaaS cloud providers. It assumes that the user has properly configured the environment for the credentials to access the services of each provider. 
+
+### Multilevel extension for _Distributed.jl_
+
+For the creation of Manager-Workers clusters, the multilevel extension of _Distributed.jl_ is necessary, but only for the access node of the cluster, where the so-called _driver process_ will be running. 
+
 # Tutorial
 
 In what follows, we'd like to show a tutorial on using _CloudClusters.jl_, divided into two parts: _basic use_ and _advanced use_. The basic tutorial teaches the reader how to create and deploy computations on ___peer-workers___ clusters, comprising a set of homogeneous VM instances deployed in the infrastructure of an IaaS cloud provider. In turn, the advanced tutorial provides a deeper discussion about _cluster contracts_ and how to use ___manager-workers___ clusters, which comprise a manager node and a set of homogenous worker nodes only accessible through the manager node. Manager-workers clusters enable multicluster computations, promoting the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations, where the frequency and volume of communication between processes, as interacting peers, are high.
