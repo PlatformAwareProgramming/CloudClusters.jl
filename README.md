@@ -5,10 +5,10 @@
 
 _A package for creating, using, and managing cloud-based clusters deployed at the infrastructure of IaaS providers._
 
-Francisco Heron de Carvalho Junior, João Marcelo Uchoa de Alencar, and Claro Henrique Silva Sales. 2024. ___Cloud-based parallel computing across multiple clusters in Julia___. In Proceedings of the do _28th Brazilian Symposium on Programming Languages_, september 30, 2024, Curitiba/PR, Brasil. SBC, Porto Alegre, Brasil, 44-52. DOI: https://doi.org/10.5753/sblp.2024.3470.
-
 > [!NOTE]
-> _Currently, it only supports [EC2](https://aws.amazon.com/ec2/). Those who are interested can ask us about the progress with [GCP](https://cloud.google.com/) and [Azure](https://azure.microsoft.com/)._ Collaborators are welcome.
+> Currently, _CloudClusters.jl_ only supports [EC2](https://aws.amazon.com/ec2/). Those interested can ask us about the progress with other providers. Collaborators are welcome.
+
+> Francisco Heron de Carvalho Junior, João Marcelo Uchoa de Alencar, and Claro Henrique Silva Sales. 2024. ___Cloud-based parallel computing across multiple clusters in Julia___. In Proceedings of the do _28th Brazilian Symposium on Programming Languages_, September 30, 2024, Curitiba/PR, Brasil. SBC, Porto Alegre, Brasil, 44-52. DOI: https://doi.org/10.5753/sblp.2024.3470.
 
 ## Target users
 
