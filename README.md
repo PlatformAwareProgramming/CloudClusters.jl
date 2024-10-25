@@ -30,22 +30,29 @@ So, only users who need to develop customized images to instantiate cluster node
 > [!NOTE]
 > The multilevel extension to _Distributed.jl_ is hosted at https://github.com/PlatformAwareProgramming/Distributed.jl, as a fork of [the original _Distributed.jl_ repository](https://github.com/JuliaLang/Distributed.jl). The README of _Distributed.jl_ explains [how to use development versions in a current Julia installation](https://github.com/JuliaLang/Distributed.jl#using-development-versions-of-this-package). In case of difficulties, the user may contact the developers of _CloudClusters.jl_. For more information about the multilevel extension of _Distributed.jl_, read the SSCAD'2024 paper [Towards multicluster computations with Julia](https://sol.sbc.org.br/index.php/sscad/article/view/31004).
 
+### CCconfig.toml
+
 # Tutorial
 
-In what follows, we'd like to show how _CloudClusters.jl_ works, as a tutorial with two parts: _basic use_ and _advanced use_. The basic tutorial teaches the reader how to create and deploy computations on ___peer-workers___ clusters, comprising a set of homogeneous VM instances deployed in the infrastructure of an IaaS cloud provider. In turn, the advanced tutorial provides a deeper discussion about _cluster contracts_ and how to use ___manager-workers___ clusters, which comprise a manager node and a set of homogenous worker nodes only accessible through the manager node. Manager-workers clusters enable multicluster computations, promoting the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations, where the frequency and volume of communication between processes, as interacting peers, are high.
+In what follows, we'd like to show how _CloudClusters.jl_ works, as a tutorial with two parts: _basic use_ and _advanced use_. 
+
+The basic tutorial teaches the reader how to create and deploy computations on ___peer-workers___ clusters, comprising a set of homogeneous VM instances deployed in the infrastructure of an IaaS cloud provider. 
+
+The advanced tutorial provides a deeper discussion about _cluster contracts_ and how to use ___manager-workers___ clusters, which comprise a manager node and a set of homogenous worker nodes only accessible through the manager node.
+
+___Manager-workers___ clusters enable multicluster computations, promoting the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations, where the frequency and volume of communication between processes, as interacting peers, are high.
 
 # Basic use 
 
-We assume that the authentication to the IaaS provider is correctly configured in the environment where the Julia REPL session or program will execute. 
-In what follows, we teach how to create peer-workers clusters and deploy computations on them using _Distributed.jl_ primitives.
+
+In what follows, we teach how to create ___peer-workers___ clusters and deploy computations on them using _Distributed.jl_ primitives.
+The IaaS provider credentials must be properly configured in the environment where the Julia REPL session or program will execute. 
 
 ## How to create a cluster 
 
-_CloudClusters.jl_ offers six primitives, as _macros_, to create and manage the lifecycle of a cluster: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, __@resume__. 
-They are explained in the following paragraphs, with a simple example the reader can reproduce in a REPL session. 
-It is assumed the environment is configured to access the AWS EC2 services and a _CCconfig.EC2.toml_ file is available on an accessible path.
+_CloudClusters.jl_ offers six primitives, as _macros_, to create and manage the lifecycle of a cluster. They are: __@cluster__, __@resolve__, __@deploy__, __@terminate__, __@interrupt__, and __@resume__. 
 
-First, let's try a simple scenario where a user creates a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. To do this, the user uses the __@cluster__ macro, passing the number of nodes and instance type as arguments. 
+First, let's try a simple scenario where a user creates a cluster comprising four ___t3.xlarge___ virtual machines (VM) instances through the AWS EC2 services. In the simpler way to do this, the user uses the __@cluster__ macro, passing the number of nodes and instance type as arguments. 
 
 ```julia
 using CloudClusters
