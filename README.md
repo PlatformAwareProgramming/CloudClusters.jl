@@ -19,7 +19,7 @@ _CloudClusters.jl_ targets users of the Julia programming language who need on-d
 
 ### Cloud providers' credentials
 
-Despite the fact that _CloudClusters.jl_ currently only supports AWS EC2, future versions plan to support multiple IaaS cloud providers. It assumes that the user has properly configured the environment for the credentials to access the services of each provider. 
+Even though _CloudClusters.jl_ currently only supports AWS EC2, future versions plan to support multiple IaaS cloud providers. It assumes that the user has properly configured the environment for the credentials to access the services of each provider. 
 
 ### Multilevel extension for _Distributed.jl_
 
