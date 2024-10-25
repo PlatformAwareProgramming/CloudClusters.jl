@@ -357,7 +357,7 @@ The worker processes perform the computation, while the entry process is respons
 > ```
 > The _CloudClusters.jl_ developers have developed an extended version of _Distributed.jl_ that removes this limitation, making it possible to create hierarchies of Julia processes. This work is reported in the following paper:
 >
-> F. H. de Carvalho Junior and T. Carneiro. 2023. _Towards multicluster computations with Julia_. In XXV Symposium on High-Performance Computational Systems (SSCAD’2024) (São Carlos, SP). SBC, Porto Alegre, Brazil.
+> F. H. de Carvalho Junior and T. Carneiro. 2024. _Towards multicluster computations with Julia_. In XXV Symposium on High-Performance Computational Systems (SSCAD’2024) (São Carlos, SP). SBC, Porto Alegre, Brazil.
 >
 > However, the multilevel extension of _Distributed.jl_ is necessary only for the access node of manager-workers cluster, where the so-called _entry processes_, launched by the master process at the REPL/program and responsible for launching the worker processes across computing nodes of the cluster, will be running. 
 >
