@@ -44,7 +44,6 @@ ___Manager-workers___ clusters enable multicluster computations, promoting the i
 
 # Basic use 
 
-
 In what follows, we teach how to create ___peer-workers___ clusters and deploy computations on them using _Distributed.jl_ primitives.
 The IaaS provider credentials must be properly configured in the environment where the Julia REPL session or program will execute. 
 
@@ -67,13 +66,13 @@ Using __@cluster__ does not instantiate the cluster yet. It creates a _cluster c
 > [!NOTE]
 > In _CloudClusters.jl_, a handle is a symbol comprising 15 randomly calculated lower- and upper-case alphabetic characters (e.g.,```:FXqElAnSeTEpQAm``` ). Since they are symbols, they are printable and may be used directly to refer to a cluster contract.
 
-A cluster contract must be resolved before creating clusters from it. For that, the user needs to apply __@resolve__ to the contract handle, as below:
+A cluster contract must be resolved before creating clusters using it. For that, the user needs to apply __@resolve__ to the contract handle, as below:
 
 ```julia
 @resolve my_first_cluster_contract
 ```
 
-The __@resolve__ macro triggers a resolution procedure to calculate which instance type offered by one of the supported IaaS providers satisfies the contract. For ```my_first_cluster_contract```, the response is explicitly specified in the contract, i.e., the ___t3.xlarge___ instance type offered by AWS EC2. For more advanced contract specifications, where cluster contract resolution shows its power, the reader can read the section [Working with cluster contracts](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts).
+The __@resolve__ macro triggers a resolution procedure to calculate which instance type offered by one of the supported IaaS providers satisfies the contract. For ```my_first_cluster_contract```, the response is explicitly specified in the contract, i.e., the ___t3.xlarge___ instance type, only offered by AWS EC2. For advanced contract specifications, where cluster contract resolution shows its power, the reader can read the section [Working with cluster contracts](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts).
 
 A cluster may be instantiated by using ___@deploy___:
 
@@ -83,9 +82,9 @@ my_first_cluster = @deploy my_first_cluster_contract
 
 The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AWS EC2 instances, returning a cluster handle that is assigned to the ```my_first_cluster``` variable. 
 
-After __@deploy__, a set of _worker processes_ is created, one at each cluster node, whose _pids_ may be inspected using the ___nodes___ function, passing the cluster handle as an argument. 
+After __@deploy__, a set of _worker processes_ is created, one at each cluster node, whose _pids_ may be inspected by applying the ___nodes___ function to the cluster handle. 
 
-In the following code, the user fetches the _pids_ of the processes at the cluster nodes. 
+In the following code, the user fetches the _pids_ of the processes at the cluster nodes of the cluster referred to through the variable ```my_first_cluster```.
 
 ```julia-repl
 julia> nodes(my_first_cluster)
@@ -105,7 +104,7 @@ As shown in the example, the default number of worker processes per cluster node
 
 ## Running computations on the cluster
 
-The user may execute parallel computations on the cluster by using _Distributed.jl_ operations. In fact, the user can employ any distributed computing package that can help him/her to launch computations in a set of running worker processes. 
+The user may execute parallel computations on the cluster using _Distributed.jl_ operations. In fact, the user can employ any parallel/distributed computing package in the Julia ecosystem to launch computations across a set of worker processes. 
 
 For example, the following code, adapted from [The ultimate guide to distributed computing in Julia](https://github.com/Arpeggeo/julia-distributed-computing#the-ultimate-guide-to-distributed-computing-in-julia), processes a set of CSV files in a data folder in parallel, using _pmap_, across the worker processes placed at the cluster nodes. The result of each file processing is saved locally, as a CSV file in a results folder.  
 
@@ -155,7 +154,7 @@ end
 
 ## Multiple clusters
 
-The users can create cluster contracts, as well as deploy clusters from each contract, as many as they need. For example, the following code creates a second cluster contract, named ```my_second_cluster_contract```, asking for a cluster of eight VM instances equipped with exactly eight NVIDIA GPUs of Ada-Lovelace architecture and at least 512GB of memory per node. Then, it creates two clusters from ```my_second_cluster_contract```. 
+Users can create cluster contracts, as well as deploy clusters from each contract, as many times as they need. For example, the following code creates a second cluster contract, named ```my_second_cluster_contract```, asking for a cluster of eight VM instances equipped with exactly eight NVIDIA GPUs of Ada-Lovelace architecture and at least 512GB of memory per node. Then, it creates two clusters from ```my_second_cluster_contract```. 
 
 ```julia
 
