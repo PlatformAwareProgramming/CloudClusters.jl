@@ -14,8 +14,6 @@ _CloudClusters.jl_ targets users of the Julia programming language who need on-d
    
 ## Pre-requisites
 
-> [!NOTE]
-> UNDER CONSTRUCTION
 
 ### Cloud providers' credentials
 
@@ -27,7 +25,8 @@ For creating Manager-Workers clusters, the multilevel extension of _Distributed.
 
 So, only users who need to develop customized images to instantiate cluster nodes must be concerned with adapting the Julia installation for the extended _Distributed.jl_ version, and only if such an image is intended to be used with Master-Worker clusters.
 
-The multilevel extension to _Distributed.jl_ is hosted at https://github.com/PlatformAwareProgramming/Distributed.jl, as a fork of the original _Distributed.jl_ repository. The README of the _Distributed.jl_ repository explains [how to use development versions in a current Julia installation](https://github.com/JuliaLang/Distributed.jl#using-development-versions-of-this-package). In case of difficulties, the user may contact the developers of _CloudClusters.jl_.
+> [!NOTE]
+> The multilevel extension to _Distributed.jl_ is hosted at https://github.com/PlatformAwareProgramming/Distributed.jl, as a fork of the original _Distributed.jl_ repository. The README of the _Distributed.jl_ repository explains [how to use development versions in a current Julia installation](https://github.com/JuliaLang/Distributed.jl#using-development-versions-of-this-package). In case of difficulties, the user may contact the developers of _CloudClusters.jl_.
 
 # Tutorial
 
