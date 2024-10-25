@@ -154,7 +154,7 @@ end
 
 ## Multiple clusters
 
-Users can create cluster contracts, as well as deploy clusters from each contract, as many times as they need. For example, the following code creates a second cluster contract, named ```my_second_cluster_contract```, asking for a cluster of eight VM instances equipped with exactly eight NVIDIA GPUs of Ada-Lovelace architecture and at least 512GB of memory per node. Then, it creates two clusters from ```my_second_cluster_contract```. 
+Users can create cluster contracts, as well as deploy clusters from each contract, as many times as they need. For example, the following code creates a second cluster contract, named ```my_second_cluster_contract```, asking for a cluster of eight VM instances equipped with exactly eight NVIDIA GPUs of Ada-Lovelace architecture and at least 512GB of memory per node. Then, it creates two clusters from the new contract. 
 
 ```julia
 
@@ -171,7 +171,7 @@ my_third_cluster = @deploy my_second_cluster_contract
 
 This is an advanced use of cluster contracts, asking for instance types that satisfy a set of assumptions specified in the contract through instance parameters. At the time this tutorial was written, the AWS EC2 instance type that satisfies these assumptions is ___g6.48xlarge___, equipped with eight NVIDIA L4 T4 Tensor Core GPUs and 768GB of memory.
 
-Now, there are three available clusters. The _pids_ of the last two ones may be inspected:
+Now, there are three available clusters. The _pids_ of the last two ones may be also inspected:
 
 ```julia-repl
 julia> nodes(my_second_cluster)
