@@ -265,7 +265,7 @@ Cluster contracts are a set of key-value pairs ```k => v``` called _assumption p
 
 In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___node_count___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and less abstract one, where the resolution procedure, triggered by a call to __@resolve__ , will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract.
 
-On the other hand, ```my_second_cluster_contract``` employs an indirect approach, demonstrating the ability of the resolution procedure to find the VM instance type from a set of abstract assumptions. They are specified using the assumptions parameters __accelerator_count__, __accelerator_architecture__, and __accelerator_memory__, asking for cluster nodes with eight GPUs of NVIDIA Ada Lovelace architecture and at least 512GB of memory. Under these assumptions, the call to ___@resolve___ returns the __g6.48xlarge__ instance type of AWS EC2.
+On the other hand, ```my_second_cluster_contract``` employs an indirect approach, demonstrating the ability of the resolution procedure to find the VM instance type from a set of abstract assumptions. They are specified using the assumption parameters __accelerator_count__, __accelerator_architecture__, and __accelerator_memory__, asking for cluster nodes with eight GPUs of NVIDIA Ada Lovelace architecture and at least 512GB of memory. Under these assumptions, the call to ___@resolve___ returns the __g6.48xlarge__ instance type of AWS EC2.
 
 #### Querying contracts
 
@@ -296,7 +296,7 @@ Dict{String, Any} with 3 entries:
   "g2-standard-96" => Dict{Symbol, Any}(:processor => Type{>:IntelXeon_8280L}, :accelerator_architecture => Type{>:Ada}, :processor_manufacturer => Type{>:Intel}, :storage_type => Type{>:StorageType}, :node_memory_size => Type{>:Tuple{AtLeast256G, AtMost512G, 4.12317e11}}, :storage_size => Type{>:Tuple{AtLeast0, AtMostInf, Q} where Q}, :node_provider => Type{>:GoogleCloud}, :node_vcpus_count => Type{>:Tuple{AtLeast64, AtMost128, 96.0}}, :accelerator_count => Type{>:Tuple{AtLeast8, AtMost8, 8.0}}, :network_performance => Type{>:Tuple{AtLeast64G, AtMost128G, 1.07374e11}}, :accelerator => Type{>:NVIDIA_L4}, :accelerator_type => Type{>:GPU}, :accelerator_memory_size => Type{>:Tuple{AtLeast16G, AtMost32G, 2.57698e10}}, :accelerator_manufacturer => Type{>:NVIDIA}, :node_machinetype => Type{>:GCPType_G2}, :processor_microarchitecture => Type{>:CascadeLake})
   "g6.24xlarge"    => Dict{Symbol, Any}(:processor => Type{>:AMDEPYC_7R13}, :accelerator_architecture => Type{>:Ada}, :processor_manufacturer => Type{>:AMD}, :storage_type => Type{>:StorageType_EC2_NVMeSSD}, :node_memory_size => Type{>:Tuple{AtLeast256G, AtMost512G, 4.12317e11}}, :storage_size => Type{>:Tuple{AtLeast8T, AtMost16T, 1.63209e13}}, :node_provider => Type{>:AmazonEC2}, :node_vcpus_count => Type{>:Tuple{AtLeast64, AtMost128, 96.0}}, :accelerator_count => Type{>:Tuple{AtLeast4, AtMost4, 4.0}}, :network_performance => Type{>:Tuple{AtLeast32G, AtMost64G, 5.36871e10}}, :accelerator => Type{>:NVIDIA_L4}, :accelerator_type => Type{>:GPU}, :accelerator_memory_size => Type{>:Tuple{AtLeast16G, AtMost32G, 2.57698e10}}, :accelerator_manufacturer => Type{>:NVIDIA}, :node_machinetype => Type{>:EC2Type_G6_24xLarge}, :processor_microarchitecture => Type{>:Zen})
 ```
-Notice that ___@select___ a warning is emitted because __node_count__ is ignored since only instance features are considered in contract resolution.
+Notice that ___@select___ emits a warning because __node_count__ is ignored since only instance features are considered in contract resolution.
 
 Three VM instance types satisfy the contract, since they provide at least 256GB of memory and at least four NVIDIA GPUs of Ada architecture (L4 Tensor Core). They are: ___g6.48xlarge___, ___g2-standard-96___, and ___g6.24xlarge___. The user may inspect the features of each instance type and write a contract that selects one directly.
 
@@ -355,7 +355,6 @@ The worker processes perform the computation, while the entry process is respons
 > ERROR: On worker 2:
 > Only process 1 can add or remove workers
 > ```
-
 > The _CloudClusters.jl_ developers have developed a modified version of _Distributed.jl_ that remove this limitation, making possible to create hiearchies of Julia processes. This work is reported in the following paper:
 >
 > F. H. de Carvalho Junior and T. Carneiro. 2023. _Towards multicluster computations with Julia_. In XXV Symposium on High-Performance Computational Systems (SSCAD’2024) (São Carlos, SP). SBC, Porto Alegre, Brazil.
