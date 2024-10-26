@@ -440,10 +440,10 @@ my_cluster_contract = @cluster(node_count => 4,
 
 my_cluster = @deploy(my_first_cluster,
                      user => "ubuntu",
-                     keyname => "mykey")
+                     sshflags => "-i mykey.pem")
 ```
 
-In the above code, ```image_id``` is used to specify that the EC2 image identified by ```ami-07f6c5b6de73ce7ae``` must be used when creating clusters from _my_cluster_contract_. On the other hand, ```user``` and ```mykey``` will be used to access the nodes of _my_cluster_. For example, ```ami-07f6c5b6de73ce7ae``` may provide a set of predefined users with different privileges to access the features offered by such an image.
+In the above code, ```image_id``` is used to specify that the EC2 image identified by ```ami-07f6c5b6de73ce7ae``` must be used when creating clusters from _my_cluster_contract_. On the other hand, ```user``` and ```sshflags``` will be used to access the nodes of _my_cluster_. For example, ```ami-07f6c5b6de73ce7ae``` may provide a set of predefined users with different privileges to access the features offered by such an image.
 
 Currently, there are four categories of configuration parameters. They are described in the following paragraphs.
 
