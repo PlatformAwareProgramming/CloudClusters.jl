@@ -240,7 +240,7 @@ Finally, a cluster may be finished/terminated using the ___@terminate___ macro:
 @terminate my_first_cluster
 ```
 
-After terminating, the cloud resources associated with the cluster are freed.
+After terminating, the cloud resources associated with the cluster are released.
 
 ## How to reconnect to a non-terminated cluster
 
@@ -250,7 +250,7 @@ If a cluster was not terminated in a previous execution of a Julia program or RE
 @reconnect :FXqElAnSeTEpQAm
 ```
 
-In the above code, ```:FXqElAnSeTEpQAm``` is the handle of a cluster not terminated in a previous execution session. But how may the user discover the cluster handle of a non-terminated cluster? After a crash, for example. For that, the user may call the ___@clusters___ macro, which returns a list of non-terminated clusters in previous sessions that can be reconnected:
+In the above code, ```:FXqElAnSeTEpQAm``` is the handle of a cluster not terminated in a previous execution session. But how may the user discover the cluster handle of a non-terminated cluster? For example, after a system crash? For that, the user may call the ___@clusters___ macro, which returns a list of non-terminated clusters in previous sessions that are still alive and can be reconnected:
 
 ```julia
 julia> @clusters
@@ -265,7 +265,7 @@ julia> @clusters
 
 As shown in the previous examples of using the ___@cluster___ macro, _CloudClusters.jl_ supports _cluster contracts_ to specify _assumptions_ about _features_ of clusters, with special attention to the types of VM instances comprising cluster nodes. 
 
-Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a _platform type_. A predefined set of assumption parameters is supported, each with a _name_ and a _base platform type_. They are listed [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#list-of-supported-assumption-parameters), providing a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs.
+Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a value or _platform type_. A predefined set of assumption parameters is supported, each with a _name_ and a default value or _base platform type_. They are listed [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#list-of-instance-feature-parameters), providing a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs.
 
 In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___node_count___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and less abstract one, where the resolution procedure, triggered by a call to __@resolve__ , will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract.
 
