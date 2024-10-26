@@ -7,12 +7,11 @@ _A package for creating, using, and managing cloud-based clusters deployed at th
 
 > [!NOTE]
 > Currently, _CloudClusters.jl_ only supports [EC2](https://aws.amazon.com/ec2/). Those interested can ask us about progress with other providers.
-> 
-> Collaborators are welcome.
+> Contributors are welcome.
 
 ## Target users
 
-_CloudClusters.jl_ targets users of the Julia programming language who need on-demand access to cutting-edge computing resources offered by IaaS cloud providers to meet high-performance computing (HPC) requirements of applications of their interest.
+_CloudClusters.jl_ targets users of the Julia programming language who need on-demand access to cutting-edge computing resources offered by IaaS cloud providers to attend to high-performance computing (HPC) application requirements.
    
 ## Pre-requisites
 
@@ -25,20 +24,32 @@ _CloudClusters.jl_ assumes that the user has properly configured the environment
 
 ### The configuration file (_CCconfig.toml_)
 
+Creating clusters with _CloudClusters.jl_ requires specifying a set of configuration parameters. By default, they are specified in a file named _CCconfig.toml_ that is searched in the following locations, in this order:
+* a path pointed by the CLOUD_CLUSTERS_CONFIG environment variable, if it exists;
+* the current path.
+  
+Default configuration parameters can be overridden in programs. 
+
+A description of each configuration parameter and how programs can override their default values from _CCconfig.toml_ is presented in a further section. Click [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#configuration-parameters) to move to there.
+
+
 # Tutorial
 
-In what follows, we'd like to show how _CloudClusters.jl_ works, as a tutorial with two parts: _basic use_ and _advanced use_. 
+In what follows, we present a tutorial on how _CloudClusters.jl_ works, divided in two parts: _basic use_ and _advanced use_. 
 
 The basic tutorial teaches the reader how to create and deploy computations on ___peer-workers___ clusters, comprising a set of homogeneous VM instances deployed in the infrastructure of an IaaS cloud provider. 
 
-The advanced tutorial provides a deeper discussion about _cluster contracts_ and how to use ___manager-workers___ clusters, which comprise a manager node and a set of homogenous worker nodes only accessible through the manager node.
-
-___Manager-workers___ clusters enable multicluster computations, promoting the integrated use of _Distributed.jl_ and _MPI.jl_ to implement tightly coupled parallel computations, where the frequency and volume of communication between processes, as interacting peers, are high.
+The advanced tutorial includes:
+* [a deeper discussion about _cluster contracts_](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts);
+* [how to use MPI with ___peer-workers___ clusters](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#peer-workers-mpi-clusters);
+* [how to create ___manager-workers___ clusters, a kind of cluster that comprises an access node and a set of homogenous compute nodes only accessible through the access node](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#manager-workers-clusters);
+* [a description of configuration parameters and how programs can override the default values from the _CCconfig.toml_ file](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#configuration-parameters).
 
 # Basic use 
 
 In what follows, we teach how to create ___peer-workers___ clusters and deploy computations on them using _Distributed.jl_ primitives.
-The IaaS provider credentials must be properly configured in the environment where the Julia REPL session or program will execute. 
+
+Remember that the AWS credentials must be properly configured in the environment where the Julia REPL session or program will execute. 
 
 ## How to create a cluster 
 
@@ -54,7 +65,7 @@ my_first_cluster_contract = @cluster  node_count => 4  node_machinetype => EC2Ty
 
 ```
 
-Using __@cluster__ does not instantiate the cluster yet. It creates a _cluster contract_ and returns a handle for it. The _contract handle_ is stored in the _my_first_cluster_contract_ variable, through which the user can create one or more clusters later. 
+Using __@cluster__ does not instantiate the cluster yet. It creates a _cluster contract_ and returns a handle for it. For instance, in the example, the _contract handle_ is stored in the _my_first_cluster_contract_ variable, through which the user can create one or more clusters later. 
 
 > [!NOTE]
 > In _CloudClusters.jl_, a handle is a symbol comprising 15 randomly calculated lower- and upper-case alphabetic characters (e.g.,```:FXqElAnSeTEpQAm``` ). Since they are symbols, they are printable and may be used directly to refer to a cluster contract.
