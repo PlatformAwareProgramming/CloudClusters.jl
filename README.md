@@ -76,7 +76,7 @@ A cluster contract must be resolved before creating clusters using it. For that,
 @resolve my_first_cluster_contract
 ```
 
-The __@resolve__ macro triggers a resolution procedure to calculate which instance type offered by one of the supported IaaS providers satisfies the contract. For ```my_first_cluster_contract```, the response is explicitly specified in the contract, i.e., the ___t3.xlarge___ instance type, only offered by AWS EC2. For advanced contract specifications, where cluster contract resolution shows its power, the reader can read the section [Working with cluster contracts](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts).
+The __@resolve__ macro triggers a resolution procedure to calculate which instance type offered by one of the supported IaaS providers satisfies the contract. For ```my_first_cluster_contract```, the response is explicitly specified in the contract, i.e., the ___t3.xlarge___ instance type, only offered by AWS EC2. For advanced contract specifications, where cluster contract resolution shows its power, the reader can read the section [Working with cluster contracts](https://github.com/PlatformAwareProgramming/CloudClusters.jl/blob/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts).
 
 A cluster may be instantiated by using ___@deploy___:
 
@@ -88,7 +88,7 @@ The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AW
 
 After __@deploy__, a set of _worker processes_ is created, one at each cluster node, whose _pids_ may be inspected by applying the ___nodes___ function to the cluster handle. 
 
-In the following code, the user fetches the _pids_ of the processes at the cluster nodes of the cluster referred to through the variable ```my_first_cluster```.
+In the following code, the user fetches the _pids_ of the processes at the cluster nodes of the cluster referred to through ```my_first_cluster```.
 
 ```julia-repl
 julia> nodes(my_first_cluster)
@@ -102,15 +102,15 @@ julia> nodes(my_first_cluster)
 As shown in the example, the default number of worker processes per cluster node is 1. However, the user may create N worker processes per cluster node using the ```node_process_count => N``` parameter in the contract specification. For example, in the following contract, the number of worker processes per cluster node is set to 2:
 
 ```julia
-@cluster  node_count => 4  node_process_count=>2  node_machinetype => EC2Type_T3_xLarge
+@cluster  node_count => 4  node_process_count => 2  node_machinetype => EC2Type_T3_xLarge
 ```
 
 
 ## Running computations on the cluster
 
-The user may execute parallel computations on the cluster using _Distributed.jl_ operations. In fact, the user can employ any parallel/distributed computing package in the Julia ecosystem to launch computations across a set of worker processes. 
+The user may execute parallel computations on the cluster using _Distributed.jl_ operations. In fact, the user can employ any parallel/distributed computing package in the Julia ecosystem to launch computations across a set of worker processes. For instance, the advanced tutorial will show how to use _MPI.jl_ integrated to _Distributed.jl_. 
 
-For example, the following code, adapted from [The ultimate guide to distributed computing in Julia](https://github.com/Arpeggeo/julia-distributed-computing#the-ultimate-guide-to-distributed-computing-in-julia), processes a set of CSV files in a data folder in parallel, using _pmap_, across the worker processes placed at the cluster nodes. The result of each file processing is saved locally, as a CSV file in a results folder.  
+The following code, adapted from [The ultimate guide to distributed computing in Julia](https://github.com/Arpeggeo/julia-distributed-computing#the-ultimate-guide-to-distributed-computing-in-julia), processes a set of CSV files in a data folder in parallel, using _pmap_, across the worker processes placed at the cluster nodes. The result of each file processing is saved locally, as a CSV file in a results folder.  
 
 ```julia
 using Distributed
@@ -201,7 +201,7 @@ julia> nodes(my_third_cluster)
 21
 ```
 
-The user may orchestrate the processing power of multiple clusters to execute computations of their interest, independent of their providers. This is _multicluster computation_. However, it is important to note that communication operations between processes placed at nodes of different clusters (inter-cluster communication), mainly when these clusters are deployed at different IaaS providers, must be used with care, only when strictly necessary and asynchronously, if possible, trying to overlap high communication overheads with useful computations.
+The user may orchestrate the processing power of multiple clusters to execute computations of their interest, independent of their providers. This is _multicluster computation_. However, it is important to note that communication operations between processes placed at nodes of different clusters (inter-cluster communication), mainly when these clusters are deployed at different IaaS providers, must be used with care due to the high communication cost, only when necessary and overlapping communication and computation using asynchronous operations,. 
 
 ## Interrupting and resuming a cluster
 
@@ -212,12 +212,12 @@ A cluster may be interrupted through the ___@interrupt___ macro:
 ```
 The effect of ___@interrupt___ is pausing/stopping the VM instances of the cluster nodes. 
 
-An interrupted cluster can be put back to the running state through the ___@resume___ macro:
+An interrupted cluster can be brought back to the running state using the ___@resume___ macro:
 
 ```julia
 @resume my_first_cluster
 ```
-The resuming operation creates a fresh set of worker processes, with new _pids_.
+The resuming operation starts the VM instances and creates a fresh set of worker processes, with new _pids_.
 
 > [!CAUTION]
 > ___@interrupt___ does not preserve the state of undergoing computations in the cluster, since it kills the worker processes running at the cluster nodes. The interruption of a cluster may be used to avoid the cost of cloud resources that are not currently being used. The user is responsible for saving the state of undergoing computations in a cluster to be interrupted and reloading the state after resuming, if necessary. 
@@ -230,7 +230,7 @@ A user can restart the processes at the cluster nodes by using the ___@restart__
 @restart my_first_cluster
 ```
 
-The restart procedure kills all the current processes at the cluster nodes, losing their current state, and creates new processes, with new pids. 
+The restart procedure kills all the current processes at the cluster nodes, losing their current state, and creates new processes, with fresh _pids_. 
 
 ## Terminating a cluster
 
