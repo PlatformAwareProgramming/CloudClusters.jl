@@ -330,16 +330,52 @@ The supported instance parameters currently supported by _CloudClusters.jl_, wit
    * __network_performance__::```@atleast 0```
       
 
+### Peer-Workers-MPI clusters
+
+___Peer-Workers-MPI___ is a variation of ___Peer-Workers___ clusters, where worker processes are connected through a global MPI communicator. This is possible through _MPI.jl_ and _MPIClusterManagers.jl_. 
+
+In what follows, we modify the ```my_second_cluster_contract``` to build a ___Peer-Workers-MPI___ cluster, by using the ```cluster_type``` parameter:
+
+```julia
+my_third_cluster_contract = @cluster(cluster_type => PeerWorkersMPI,
+                                     node_count => 8,   
+                                     node_memory_size => @atleast(512G),
+                                     accelerator_count => @just(8),
+                                     accelerator_architecture => Ada)
+```
+
+
+The following code launches a simple _MPI.jl_ code in the _my_fourth_cluster_, using the ```@everywhere``` primitive of _Distributed.jl_. 
+
+```julia
+my_fourth_cluster = @deploy my_third_cluster_contract
+
+@everywhere nodes(my_fourth_cluster) begin
+   @eval using MPI
+   MPI.Init()
+   rank = MPI.Comm_rank(MPI.COMM_WORLD)
+   size = MPI.Comm_size(MPI.COMM_WORLD)
+   @info "I am $rank among $size processes"
+   root_rank = 0
+   rank_sum = MPI.Reduce(rank, (x,y) -> x + y, root_rank, MPI.COMM_WORLD)
+end
+
+result = @fetchfrom ranks(my_first_cluster0)[0] rank_sum
+@info "The sum of ranks in the cluster is $result"
+```
+
+The parallel code calculates the sum of the ranks of the processes using the _Reduce_ collective operation of _MPI.jl_, and stores the results in the global variable _rank_sum_ of the root process, with rank 0. Then, this value is fetched by the program and assigned to the _result_ variable using ```@fetchfrom```. For that, the ```ranks``` function is used to discover the _pid_ of the root process.
 
 
 ### Manager-Workers clusters
 
 
-___Manager-Workers___ clusters comprise a _manager node_ and a homogenous set of _worker nodes_ only accessible from the manager node. The instance type of the manager node may differ from the instance type of the worker nodes. The host program is called the _driver process_, which launches the so-called _entry process_ in the access node of the cluster. In turn, the entry process launches _worker processes_ across the worker nodes, using _MPIClusterManagers.jl_. 
+___Manager-Workers___ clusters comprise an _access node_ and a homogenous set of _compute nodes_. The compute nodes are only accessible from the access node. The instance type of the access node may differ from the instance type of the compute nodes. 
 
-___Manager-Workers___ are useful wheh
+In a ___Manager-Workers___ cluster, the master process, running in the REPL or main program, is called the _driver process_. It is responsible for launching the so-called _entry process_ in the cluster's access node. In turn, the entry process launches _worker processes_ across the compute nodes, using _MPIClusterManagers.jl_. The worker processes perform the computation, while the entry process is responsible for communication between the driver and the worker processes. A global MPI communicator exists between worker processes, like in ___Peer-Workers-MPI___ clusters.
 
-The worker processes perform the computation, while the entry process is responsible for communication between the driver and the worker processes. This is necessary to enable manager-worker clusters to offer users the ability to program using MPI (Message Passing Interface) to implement tightly coupled parallel computations involving the worker processes, using the third-party _MPI.jl_ package. 
+___Manager-Workers___ are useful when the compute nodes of the cluster are not directly accessible from the external network. This is a common situation in on-premises clusters, but also in clusters built from the services of cluster providers  specifically tailored to attending HPC applications.
+
 
 > [!IMPORTANT]
 > ___Manager-Workers___ are not natively supported by Julia, because _Distributed.jl_ does not support that worker processes create new processes, as shown below:
@@ -379,27 +415,6 @@ my_second_cluster_contract = @cluster(cluster_type => ManageWorkers,
 ```
 
 This contract specifies that the manager node must be a ___t3.xlarge___ VM instance, while the worker nodes will have eight NVIDIA GPUs of Ada architecture and at least 512GB of memory.
-
-The following code launches a simple _MPI.jl_ code in the _my_first_cluster_, using the ```@everywhere``` primitive of _Distributed.jl_. 
-
-```julia
-my_first_cluster = @deploy my_first_cluster_contract
-
-@everywhere nodes(my_first_cluster) begin
-   @eval using MPI
-   MPI.Init()
-   rank = MPI.Comm_rank(MPI.COMM_WORLD)
-   size = MPI.Comm_size(MPI.COMM_WORLD)
-   @info "I am $rank among $size processes"
-   root_rank = 0
-   rank_sum = MPI.Reduce(rank, (x,y) -> x + y, root_rank, MPI.COMM_WORLD)
-end
-
-result = @fetchfrom ranks(my_first_cluster0)[0] rank_sum
-@info "The sum of ranks in the cluster is $result"
-```
-
-The parallel code calculates the sum of the ranks of the processes using the _Reduce_ collective operation of _MPI.jl_, and stores the results in the global variable _rank_sum_ of the root process, with rank 0. Then, this value is fetched by the program and assigned to the _result_ variable using ```@fetchfrom```. For that, the ```ranks``` function is used to discover the _pid_ of the root process.
 
 ### Configuration parameters
 
