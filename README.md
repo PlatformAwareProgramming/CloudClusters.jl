@@ -449,7 +449,6 @@ Currently, there are four categories of configuration parameters. They are descr
 
 The following configuration parameters set up the SSH connections to nodes of ___Peer-Workers___ clusters and the master node of ___Master-Worker___ clusters, i.e., those nodes that are externally accessible:
 * __user__::```String```
-* __keyname__::```String```
 * __sshflags__::```String```
 * __tunneled__::```Bool```
 
