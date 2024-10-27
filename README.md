@@ -1,6 +1,3 @@
-> [!NOTE]
-> This README is still under construction. Please ask the developers if you have any questions or suggestions.
-
 # CloudClusters.jl
 
 _A package for creating, using, and managing cloud-based clusters deployed at the infrastructure of IaaS providers._
