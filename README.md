@@ -448,24 +448,24 @@ In the above code, ```image_id``` is used to specify that the EC2 image identifi
 Currently, there are four categories of configuration parameters. They are described in the following paragraphs.
 
 The following configuration parameters set up the SSH connections to nodes of ___Peer-Workers___ clusters and the master node of ___Master-Worker___ clusters, i.e., those nodes that are externally accessible:
-* __user__::```String```
-* __sshflags__::```String```
-* __tunneled__::```Bool```
+* __user__::```String```, the user login to access VM instances (e.g., ```user@xxx.xxx.xxx.xxx```, where ```xxx.xxx.xxx.xxx``` is the public IP of the VM instance);
+* __sshflags__::```String```, the flags that must be passed to the ssh command to access the VM instances;
+* __tunneled__::```Bool```, a keyword argument to be passed to ```addprocs``` to determine whether or not ssh access should be [tunneled](https://www.ssh.com/academy/ssh/tunneling).
 
 The following configuration parameters apply to cluster nodes of any cluster type:
-* __exename__::```String```
-* __exeflags__::```String```
-* __directory__::```String```
+* __exename__::```String```, the full path to the ```julia``` executable (e.g., /home/ubuntu/.juliaup/bin/julia);
+* __exeflags__::```String```, flags to be passed to the ```julia``` executable when starting processes on cluster nodes;
+* __directory__::```String```, the current directory of the ```julia``` execution in the VM instance.
 
-The following configuration parameters apply to nodes of ___Peer-Workers-MPI___ and worker nodes of ___Manager-Workers___ clusters, i.e., that ones with MPI-based message-passing enabled:
-* __threadlevel__::```String```
-* __mpiflags__::```String```
+The following configuration parameters apply to nodes of ___Peer-Workers-MPI___ and worker nodes of ___Manager-Workers___ clusters, i.e., the ones with MPI-based message-passing enabled:
+* __threadlevel__::```Symbol```, a keyword argument that is passed to ```MPI.Init```, whose possible values are: [```single```,```:serialized```, ```:funneled```, ```:multiple```](https://juliaparallel.org/MPI.jl/stable/reference/environment/#MPI.ThreadLevel); 
+* __mpiflags__::```String```, a keyword argument that passed to MPI (e.g., ```"--map-by node --hostfile /home/ubuntu/hostfile"```). 
 
 The last set of configuration parameters depends on the IaaS provider selected through __@resolve__. For AWS EC2, they are:
-* __imageid__::```String```
-* __subnet_id__::```String```
-* __placement_group__::```String```
-* __security_group_id__::```String```
+* __imageid__::```String```, the _id_ of the image used to instantiate the VM instances that form the cluster nodes;
+* __subnet_id__::```String```, the _id_ of a subnet for the communication between VM instances that form the cluster nodes;
+* __placement_group__::```String```, the _id_ of an existing placement group where the user wishes to colocate the VM instances that form the cluster nodes (the default is to create a temporary placement group);
+* __security_group_id__: :```String```, the _id_ of an existing security group for the VM instances that form the cluster nodes.
 
 # Publications
 
