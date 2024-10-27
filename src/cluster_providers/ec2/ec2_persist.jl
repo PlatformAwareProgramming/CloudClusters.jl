@@ -12,8 +12,6 @@ function ec2_cluster_save(cluster::ManagerWorkers)
     contents["instance_type_master"] = cluster.instance_type_master
     contents["instance_type_worker"] = cluster.instance_type_worker
     contents["count"] = cluster.count
-    contents["key_name_master"] = cluster.key_name_master
-    contents["key_name_worker"] = cluster.key_name_worker
     contents["image_id_master"] = cluster.image_id_master
     contents["image_id_worker"] = cluster.image_id_worker
     !isnothing(cluster.subnet_id) && (contents["subnet_id"] = cluster.subnet_id)
@@ -50,7 +48,6 @@ function ec2_cluster_save(cluster::PeerWorkers)
     contents["name"] = cluster.name
     contents["instance_type"] = cluster.instance_type
     contents["count"] = cluster.count
-    contents["key_name"] = cluster.key_name
     contents["image_id"] = cluster.image_id
     !isnothing(cluster.subnet_id) && (contents["subnet_id"] = cluster.subnet_id)
     !isnothing(cluster.placement_group) && (contents["placement_group"] = cluster.placement_group)
@@ -80,8 +77,6 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:ManagerWorkers}, cluster_han
     instance_type_master = contents["instance_type_master"]
     instance_type_worker = contents["instance_type_worker"]
     count =  contents["count"]
-    key_name_master = contents["key_name_master"]
-    key_name_worker = contents["key_name_worker"]
     image_id_master = contents["image_id_master"]
     image_id_worker = contents["image_id_worker"]
     subnet_id = haskey(contents, "subnet_id") ? contents["subnet_id"] : nothing
@@ -100,7 +95,7 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:ManagerWorkers}, cluster_han
     shared_fs = contents["shared_fs"]
 
     cluster = EC2ManagerWorkers(AmazonEC2, string(cluster_handle), instance_type_master, instance_type_worker, count, 
-                                    key_name_master, key_name_worker, image_id_master, image_id_worker, 
+                                    image_id_master, image_id_worker, 
                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                     environment, cluster_nodes, shared_fs, cluster_features)
 
@@ -129,7 +124,6 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:PeerWorkers}, cluster_handle
 
     instance_type = contents["instance_type"]
     count =  contents["count"]
-    key_name = contents["key_name"]
     image_id = contents["image_id"]
     subnet_id = haskey(contents, "subnet_id") ? contents["subnet_id"] : nothing
     placement_group = haskey(contents, "placement_group") ? contents["placement_group"] : nothing
@@ -147,7 +141,7 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:PeerWorkers}, cluster_handle
     shared_fs = contents["shared_fs"]
 
     cluster = EC2PeerWorkers(AmazonEC2, string(cluster_handle), instance_type, count, 
-                                    key_name, image_id, 
+                                    image_id, 
                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                     environment, cluster_nodes, shared_fs, cluster_features)
 

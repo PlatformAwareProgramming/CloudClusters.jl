@@ -50,7 +50,6 @@ function loadDefaults(_::Type{Provider}, ccconfig_dict)
     defaults_dict = Dict()
 
     haskey(ccconfig_dict["defaults"], "user") && (defaults_dict[:user] = ccconfig_dict["defaults"]["user"])
-    haskey(ccconfig_dict["defaults"], "keyname") && (defaults_dict[:keyname] = ccconfig_dict["defaults"]["keyname"])
     haskey(ccconfig_dict["defaults"], "exename") && (defaults_dict[:exename] = ccconfig_dict["defaults"]["exename"])
     haskey(ccconfig_dict["defaults"], "exeflags") && (defaults_dict[:exeflags] = ccconfig_dict["defaults"]["exeflags"])
     haskey(ccconfig_dict["defaults"], "directory") && (defaults_dict[:directory] = ccconfig_dict["defaults"]["directory"])

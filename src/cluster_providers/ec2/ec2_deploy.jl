@@ -17,7 +17,6 @@ function deploy_cluster(_::Type{AmazonEC2},
     count = get(cluster_features, :node_count, 1)
 
     imageid_master, imageid_worker = extract_mwfeature(cluster_features, AmazonEC2, :imageid)
-    keyname_master, keyname_worker = extract_mwfeature(cluster_features, Provider, :keyname)
 
     subnet_id = get(cluster_features, :subnet_id, get(defaults_dict[AmazonEC2], :subnet_id, nothing))
     placement_group = get(cluster_features, :placement_group, get(defaults_dict[AmazonEC2], :placement_group, nothing))  
@@ -27,7 +26,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     auto_sg, security_group_id = security_group_id == "automatic" ? (true, ec2_create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
 
     cluster = EC2ManagerWorkers(AmazonEC2, string(cluster_handle), instance_type_master, instance_type_worker, count, 
-                                    keyname_master, keyname_worker, imageid_master, imageid_worker, 
+                                    imageid_master, imageid_worker, 
                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                     nothing, nothing, false, cluster_features)
     
@@ -53,7 +52,6 @@ function deploy_cluster(_::Type{AmazonEC2},
     #= the necessary information to perform cluster operations (interrupt, resume, terminate) =#
 
     count = get(cluster_features, :node_count, 1)
-    keyname = get(cluster_features, :keyname, defaults_dict[AmazonEC2][:keyname])
     imageid = get(cluster_features, :imageid, defaults_dict[AmazonEC2][:imageid]) 
     subnet_id = get(cluster_features, :subnet_id, get(defaults_dict[AmazonEC2], :subnet_id, nothing))
     placement_group = get(cluster_features, :placement_group, get(defaults_dict[AmazonEC2], :placement_group, nothing))  
@@ -62,7 +60,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     auto_pg, placement_group = placement_group == "automatic" ? (true, ec2_create_placement_group(string("pgroup_", cluster_handle))) : (false, placement_group)
     auto_sg, security_group_id = security_group_id == "automatic" ? (true, ec2_create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
 
-    cluster = ec2_build_clusterobj(cluster_type, string(cluster_handle), instance_type, count, keyname, imageid,
+    cluster = ec2_build_clusterobj(cluster_type, string(cluster_handle), instance_type, count, imageid,
                                 subnet_id, placement_group, auto_pg, security_group_id, auto_sg, cluster_features)
 
     ec2_create_cluster(cluster)
@@ -74,15 +72,15 @@ function deploy_cluster(_::Type{AmazonEC2},
     return cluster
 end
 
-ec2_build_clusterobj(_::Type{<:PeerWorkers}, cluster_handle, instance_type, count, keyname, imageid, subnet_id, 
+ec2_build_clusterobj(_::Type{<:PeerWorkers}, cluster_handle, instance_type, count, imageid, subnet_id, 
                                              placement_group, auto_pg, security_group_id, auto_sg, cluster_features) =  
-                                                 EC2PeerWorkers(AmazonEC2, cluster_handle, instance_type, count, keyname, imageid,
+                                                 EC2PeerWorkers(AmazonEC2, cluster_handle, instance_type, count, imageid,
                                                                 subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                                                 nothing, nothing, false, cluster_features)
 
-ec2_build_clusterobj(_::Type{<:PeerWorkersMPI}, cluster_handle, instance_type, count, keyname, imageid, subnet_id, 
+ec2_build_clusterobj(_::Type{<:PeerWorkersMPI}, cluster_handle, instance_type, count, imageid, subnet_id, 
                                                 placement_group, auto_pg, security_group_id, auto_sg, cluster_features) =  
-                                                  EC2PeerWorkersMPI(AmazonEC2, cluster_handle, instance_type, count, keyname, imageid,
+                                                  EC2PeerWorkersMPI(AmazonEC2, cluster_handle, instance_type, count, imageid,
                                                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                                                     nothing, nothing, false, cluster_features)
 

@@ -2,7 +2,6 @@
 [defaults]
 
 user = "ubuntu"
-keyname = "hpc-shelf-credential"
 sshflags = "-i /home/heron/hpc-shelf-credential.pem" 
 exename = "/home/ubuntu/.juliaup/bin/julia"
 directory = "/home/ubuntu/heron/NPBApps.jl"

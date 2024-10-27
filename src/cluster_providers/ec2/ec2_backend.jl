@@ -52,8 +52,6 @@ mutable struct EC2ManagerWorkers <: ManagerWorkers #Cluster
     instance_type_master::String
     instance_type_worker::String
     count::Int
-    key_name_master::String
-    key_name_worker::String
     image_id_master::String
     image_id_worker::String
     subnet_id::Union{String, Nothing}
@@ -73,7 +71,6 @@ mutable struct EC2PeerWorkers <: PeerWorkers # Cluster
     name::String
     instance_type::String
     count::Int
-    key_name::String
     image_id::String
     subnet_id::Union{String, Nothing}
     placement_group::Union{String, Nothing}
@@ -91,7 +88,6 @@ mutable struct EC2PeerWorkersMPI <: PeerWorkersMPI # Cluster
     name::String
     instance_type::String
     count::Int
-    key_name::String
     image_id::String
     subnet_id::Union{String, Nothing}
     placement_group::Union{String, Nothing}
@@ -240,7 +236,6 @@ function ec2_create_params(cluster::ManagerWorkers, user_data_base64)
    params_master = Dict(
         "InstanceType" => cluster.instance_type_master,
         "ImageId" => cluster.image_id_master,
-        "KeyName" => cluster.key_name_master,
         "TagSpecification" => 
             Dict(
                 "ResourceType" => "instance",
@@ -253,7 +248,6 @@ function ec2_create_params(cluster::ManagerWorkers, user_data_base64)
     params_workers = Dict(
         "InstanceType" => cluster.instance_type_worker,
         "ImageId" => cluster.image_id_worker,
-        "KeyName" => cluster.key_name_worker,
         "TagSpecification" => 
             Dict(
                 "ResourceType" => "instance",
@@ -285,7 +279,6 @@ function ec2_create_params(cluster::PeerWorkers, user_data_base64)
     params = Dict(
         "InstanceType" => cluster.instance_type,
         "ImageId" => cluster.image_id,
-        "KeyName" => cluster.key_name,
         "TagSpecification" => 
             Dict(
                 "ResourceType" => "instance",
