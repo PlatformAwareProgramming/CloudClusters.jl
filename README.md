@@ -81,7 +81,7 @@ A cluster may be instantiated by using ___@deploy___:
 my_first_cluster = @deploy my_first_cluster_contract
 ```
 
-The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AWS EC2 instances, returning a cluster handle that is assigned to the ```my_first_cluster``` variable. 
+The __@deploy__ macro will create a 4-node cluster comprising ___t3.xlarge___ AWS EC2 instances, returning a cluster handle, assigned to the ```my_first_cluster``` variable. 
 
 After __@deploy__, a set of _worker processes_ is created, one at each cluster node, whose _pids_ may be inspected by applying the ___nodes___ function to the cluster handle. 
 
@@ -96,7 +96,7 @@ julia> nodes(my_first_cluster)
 5
 ```
 
-As shown in the example, the default number of worker processes per cluster node is 1. However, the user may create N worker processes per cluster node using the ```node_process_count => N``` parameter in the contract specification. For example, in the following contract, the number of worker processes per cluster node is set to 2:
+The example shows that the default number of worker processes per cluster node is 1. However, the user may create N worker processes per cluster node using the ```node_process_count => N``` parameter in the contract specification. For example, in the following contract, the number of worker processes per cluster node is set to 2:
 
 ```julia
 @cluster  node_count => 4  node_process_count => 2  node_machinetype => EC2Type_T3_xLarge
@@ -105,7 +105,7 @@ As shown in the example, the default number of worker processes per cluster node
 
 ## Running computations on the cluster
 
-The user may execute parallel computations on the cluster using _Distributed.jl_ operations. In fact, the user can employ any parallel/distributed computing package in the Julia ecosystem to launch computations across a set of worker processes. For instance, the advanced tutorial will show how to use _MPI.jl_ integrated to _Distributed.jl_. 
+The user may execute parallel computations on the cluster using _Distributed.jl_ operations. In fact, the user can employ any parallel/distributed computing package in the Julia ecosystem to launch computations across a set of worker processes. For instance, the advanced tutorial will show how to use _MPI.jl_ integrated with _Distributed.jl_. 
 
 The following code, adapted from [The ultimate guide to distributed computing in Julia](https://github.com/Arpeggeo/julia-distributed-computing#the-ultimate-guide-to-distributed-computing-in-julia), processes a set of CSV files in a data folder in parallel, using _pmap_, across the worker processes placed at the cluster nodes. The result of each file processing is saved locally, as a CSV file in a results folder.  
 
@@ -266,7 +266,7 @@ Cluster contracts are a set of key-value pairs ```k => v``` called _assumption p
 
 The set of assumption parameters currently supported are listed [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl/blob/decarvalhojunior-fh-patch-1-README/README.md#list-of-instance-feature-parameters), providing a wide spectrum of assumptions for allowing users to specify the architectural characteristics of a cluster to satisfy their needs. Note that assumption parameters are classified in cluster and instance parameters, where _instance parameters_ are the assumption parameters considered in the instance resolution procedure (_resolve_).
 
-In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___node_count___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and less abstract one, where the resolution procedure, triggered by a call to __@resolve__ , will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract.
+In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___node_count___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and least abstract one, where the resolution procedure, triggered by a call to __@resolve__ , will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract.
 
 On the other hand, ```my_second_cluster_contract``` employs an indirect approach, demonstrating the ability of the resolution procedure to find the VM instance type from a set of abstract assumptions. They are specified using the assumption parameters __accelerator_count__, __accelerator_architecture__, and __accelerator_memory__, asking for cluster nodes with eight GPUs of NVIDIA Ada Lovelace architecture and at least 512GB of memory. Under these assumptions, the call to ___@resolve___ returns the __g6.48xlarge__ instance type of AWS EC2.
 
@@ -374,7 +374,7 @@ result = @fetchfrom ranks(my_first_cluster)[0] rank_sum
 @info "The sum of ranks in the cluster is $result"
 ```
 
-The parallel code calculates the sum of the ranks of the processes using the _Reduce_ collective operation of _MPI.jl_, and stores the results in the global variable _rank_sum_ of the root process, with rank 0. Then, this value is fetched by the program and assigned to the _result_ variable using ```@fetchfrom```. For that, the ```ranks``` function is used to discover the _pid_ of the root process. 
+The parallel code calculates the sum of the ranks of the processes using the _Reduce_ collective operation of _MPI.jl_ and stores the result in the global variable _rank_sum_ of the root process, with rank 0. Then, this value is fetched by the program and assigned to the _result_ variable using ```@fetchfrom```. For that, the ```ranks``` function is used to discover the _pid_ of the root process. 
 
 
 ### Manager-Workers clusters
@@ -397,7 +397,7 @@ ___Manager-Workers___ are useful when the compute nodes of the cluster are not d
 > ERROR: On worker 2:
 > Only process 1 can add or remove workers
 > ```
-> The _CloudClusters.jl_ developers have developed an extended version of _Distributed.jl_ that removes this limitation, making it possible to create hierarchies of Julia processes [2]. However, the multilevel extension of _Distributed.jl_ is necessary only for the access node of ___Mmanager-Workers___ cluster, where the so-called _entry processes_, launched by the master process at the REPL/program and responsible for launching the worker processes across computing nodes of the cluster, will be running. 
+> The _CloudClusters.jl_ developers have developed an extended version of _Distributed.jl_ that removes this limitation, making it possible to create hierarchies of Julia processes [2]. However, the multilevel extension of _Distributed.jl_ is necessary only for the access node of ___Manager-Workers___ cluster, where the so-called _entry processes_, launched by the master process at the REPL/program and responsible for launching the worker processes across computing nodes of the cluster, will be running. 
 >
 > So, only users who need to develop customized images to instantiate cluster nodes must be concerned with adapting the Julia installation for the extended _Distributed.jl_ version, and only if an image is intended to be used for master nodes of ___Manager-Workers___ clusters.
 >
@@ -455,8 +455,8 @@ The following configuration parameters apply to cluster nodes of any cluster typ
 * __directory__::```String```, the current directory of the ```julia``` execution in the VM instance.
 
 The following configuration parameters apply to nodes of ___Peer-Workers-MPI___ and worker nodes of ___Manager-Workers___ clusters, i.e., the ones with MPI-based message-passing enabled:
-* __threadlevel__::```Symbol```, a keyword argument that is passed to ```MPI.Init```, whose possible values are: [```single```,```:serialized```, ```:funneled```, ```:multiple```](https://juliaparallel.org/MPI.jl/stable/reference/environment/#MPI.ThreadLevel); 
-* __mpiflags__::```String```, a keyword argument that passed to MPI (e.g., ```"--map-by node --hostfile /home/ubuntu/hostfile"```). 
+* __threadlevel__::```Symbol```, a keyword argument passed to ```MPI.Init```, whose possible values are: [```single```,```:serialized```, ```:funneled```, ```:multiple```](https://juliaparallel.org/MPI.jl/stable/reference/environment/#MPI.ThreadLevel); 
+* __mpiflags__::```String```, a keyword argument passed to MPI (e.g., ```"--map-by node --hostfile /home/ubuntu/hostfile"```). 
 
 The last set of configuration parameters depends on the IaaS provider selected through __@resolve__. For AWS EC2, they are:
 * __imageid__::```String```, the _id_ of the image used to instantiate the VM instances that form the cluster nodes;
