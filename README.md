@@ -280,29 +280,55 @@ On the other hand, ```my_second_cluster_contract``` employs an indirect approach
 #### List of assumption parameters
 
 ___Cluster parameters___ specify features of the cluster:
-   * __cluster_type__::```Cluster```, denoting the cluster type: ManagerWorkers or PeerWorkers;
+   * __cluster_type__::```Cluster```, denoting the cluster type: ManagerWorkers, PeerWorkers, or PeerWorkersMPI;
    * __node_count__::```Integer```, denoting the number of cluster nodes (default to _1_);
    * __node_process_count__::```Integer```, denoting the number of Julia processes (MPI ranks) per node (default to _1_).
 
 ___Instance parameters___, with their respective base platform types, are listed below:
 
-   * __node_provider__::```CloudProvider```
-   * __cluster_locale__::```Locale```
-   * __node_machinetype__::```InstanceType```
-   * __node_memory_size__::```@atleast 0```
-   * __node_ecu_count__::```@atleast 1```
-   * __node_vcpus_unit__::```@atleast 1```
-   * __accelerator_count__::```@atleast 0```
-   * __accelerator_memory__::```@atleast 0```
-   * __accelerator_type__::```AcceleratorType```
-   * __accelerator_arch__::```AcceleratorArchitecture```
-   * __accelerator__::```AcceleratorModel```
-   * __processor__::```ProcessorModel```
-   * __processor_manufacturer__::```Manufacturer```
-   * __processor_microarchitecture__::```ProcessorArchitecture```
-   * __storage_type__::```StorageType```
-   * __storage_size__::```@atleast 0```
-   * __network_performance__::```@atleast 0```
+   * __node_provider__::```CloudProvider```, the provider of VM instances for the cluster nodes;
+   * __cluster_locale__::```Locale```, the geographic location where the cluster nodes will be instantiated;
+   * __node_machinetype__::```InstanceType```, the VM instance type of cluster nodes;
+   * __node_memory_size__::```@atleast 0```, the memory size of each cluster node;
+   * __node_ecu_count__::```@atleast 1```, the EC2 compute unit, a processing performance measure for VM instances (only for EC2 instances);
+   * __node_vcpus_unit__::```@atleast 1```, the number of virtual CPUs in each cluster node;
+   * __accelerator_count__::```@atleast 0```, the number of accelerators in the cluster node;
+   * __accelerator_memory__::```@atleast 0```, the amount of memory of the cluster node accelerators;
+   * __accelerator_type__::```AcceleratorType```, the type of accelerator;
+   * __accelerator_manufacturer__::```AcceleratorManufacturer```, the manufacturer of the accelerator;
+   * __accelerator_arch__::```AcceleratorArchitecture```, the architecture of the accelerator, depending on its type and manufacturer.
+   * __accelerator__::```AcceleratorModel```, the accelerator model;
+   * __processor_manufacturer__::```Manufacturer```, the processor manufacturer;
+   * __processor_microarchitecture__::```ProcessorArchitecture```, the processor microarchitecture;
+   * __processor__::```ProcessorModel```, the processor model;
+   * __storage_type__::```StorageType```, the type of storage in cluster nodes;
+   * __storage_size__::```@atleast 0```, the size of the storage in cluster nodes;
+   * __network_performance__::```@atleast 0```, the network performance between cluster nodes.
+
+
+Most platform types are specified in the _PlatformAware.jl_ package. The user may open a REPL section to query types defined in _PlatformAware.jl_. For example, the user may apply the [```subtypes``` function](https://www.jlhub.com/julia/manual/en/function/subtypes) to know the subtypes of a given platform type, which define the available choices:
+
+```julia-repl
+
+julia> using PlatformAware
+
+julia> subtypes(Accelerator)
+3-element Vector{Any}:
+ NVIDIAAccelerator
+ AMDAccelerator
+ IntelAccelerator
+
+julia> subtypes(EC2Type_T3)
+8-element Vector{Any}:
+ EC2Type_T3A
+ EC2Type_T3_2xLarge
+ EC2Type_T3_Large
+ EC2Type_T3_Medium
+ EC2Type_T3_Micro
+ EC2Type_T3_Nano
+ EC2Type_T3_Small
+ EC2Type_T3_xLarge
+```
       
 #### Querying contracts
 
