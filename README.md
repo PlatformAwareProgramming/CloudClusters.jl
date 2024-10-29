@@ -34,7 +34,7 @@ A description of each configuration parameter and how programs can override thei
 
 _CloudClusters.jl_ relies on an experimental package called [_PlatformAware.jl_](https://github.com/PlatformAwareProgramming/PlatformAware.jl) for the specification of _platform types_, aimed at specifying assumptions about architectural features of virtual machines instances. Indeed, _PlatformAware.jl_ may be used with _CloudClusters.jl_ to write functions specifically tuned according to the features of VM instances that comprise the clusters. This is called _platform-aware programming_. The users of _CloudClusters.jl_, particularly package developers, are invited to explore and use the ideas behind _PlatformAware.jl_.
 
-Section [The integration with PlatformAware.jl](https://github.com/PlatformAwareProgramming/CloudClusters.jl#the-integration-with-platformaware.jl) provides a deeper discussion about the integration of _PlatformAware.jl_ within _CloudClusters.jl_.
+Section [The integration with PlatformAware.jl](https://github.com/PlatformAwareProgramming/CloudClusters.jl#the-integration-with-platformawarejl) provides a deeper discussion about the integration of _PlatformAware.jl_ within _CloudClusters.jl_.
 
 # Tutorial
 
