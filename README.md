@@ -3,7 +3,7 @@
 _A package for creating, using, and managing clusters of virtual machine (VM) instances deployed with IaaS cloud providers._
 
 > [!NOTE]
-> Currently, _CloudClusters.jl_ only supports [EC2](https://aws.amazon.com/ec2/). If you are interested, we can ask about progress with other providers.
+> Currently, only [EC2](https://aws.amazon.com/ec2/) is supported. Those interested can ask us about progress with other providers.
 > Contributors are welcome.
 
 ## Target users
