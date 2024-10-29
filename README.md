@@ -28,8 +28,13 @@ Creating clusters with _CloudClusters.jl_ requires specifying some configuration
   
 Default configuration parameters can be overridden in programs. 
 
-A description of each configuration parameter and how programs can override their default values from _CCconfig.toml_ is presented in a further section. Click [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#configuration-parameters) to go there.
+A description of each configuration parameter and how programs can override their default values from _CCconfig.toml_ is presented in a further section. Click [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters) to go there.
 
+### The _PlatformAware.jl_ package
+
+_CloudClusters.jl_ relies on an experimental package called [_PlatformAware.jl_](https://github.com/PlatformAwareProgramming/PlatformAware.jl) for the specification of _platform types_, aimed at specifying assumptions about architectural features of virtual machines instances. Indeed, _PlatformAware.jl_ may be used with _CloudClusters.jl_ to write functions specifically tuned according to the features of VM instances that comprise the clusters. This is called _platform-aware programming_. The users of _CloudClusters.jl_, particularly package developers, are invited to explore and use the ideas behind _PlatformAware.jl_.
+
+Section [The integration with PlatformAware.jl](https://github.com/PlatformAwareProgramming/CloudClusters.jl#the-integration-with-platformaware.jl) provides a deeper discussion about the integration of _PlatformAware.jl_ within _CloudClusters.jl_.
 
 # Tutorial
 
@@ -38,10 +43,10 @@ Next, we show a tutorial on how _CloudClusters.jl_ works, divided into two parts
 The basic tutorial teaches the reader how to create and deploy computations on ___peer-workers___ clusters, comprising a set of homogeneous VM instances deployed in the infrastructure of an IaaS cloud provider. 
 
 The advanced tutorial includes:
-* [a deeper discussion about _cluster contracts_](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts);
-* [how to use MPI with ___peer-workers___ clusters](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#peer-workers-mpi-clusters);
-* [how to create ___manager-workers___ clusters, a kind of cluster that comprises an access node and a set of homogenous compute nodes only accessible through the access node](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#manager-workers-clusters);
-* [a description of configuration parameters and how programs can override the default values from the _CCconfig.toml_ file](https://github.com/PlatformAwareProgramming/CloudClusters.jl/edit/decarvalhojunior-fh-patch-1-README/README.md#configuration-parameters).
+* [a deeper discussion about _cluster contracts_](https://github.com/PlatformAwareProgramming/CloudClusters.jl#working-with-cluster-contracts);
+* [how to use MPI with ___peer-workers___ clusters](https://github.com/PlatformAwareProgramming/CloudClusters.jl#peer-workers-mpi-clusters);
+* [how to create ___manager-workers___ clusters, a kind of cluster that comprises an access node and a set of homogenous compute nodes only accessible through the access node](https://github.com/PlatformAwareProgramming/CloudClusters.jl#manager-workers-clusters);
+* [a description of configuration parameters and how programs can override the default values from the _CCconfig.toml_ file](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters).
 
 # Basic use 
 
@@ -74,7 +79,7 @@ A cluster contract must be resolved before creating clusters using it. For that,
 @resolve my_first_cluster_contract
 ```
 
-The __@resolve__ macro triggers a resolution procedure to calculate which instance type offered by one of the supported IaaS providers satisfies the contract. For ```my_first_cluster_contract```, the result is explicitly specified: the ___t3.xlarge___ instance type of AWS EC2. For advanced contract specifications, where cluster contract resolution shows its power, the reader can read the [Working with cluster contracts](https://github.com/PlatformAwareProgramming/CloudClusters.jl/blob/decarvalhojunior-fh-patch-1-README/README.md#working-with-cluster-contracts) section.
+The __@resolve__ macro triggers a resolution procedure to calculate which instance type offered by one of the supported IaaS providers satisfies the contract. For ```my_first_cluster_contract```, the result is explicitly specified: the ___t3.xlarge___ instance type of AWS EC2. For advanced contract specifications, where cluster contract resolution shows its power, the reader can read the [Working with cluster contracts](https://github.com/PlatformAwareProgramming/CloudClusters.jl#working-with-cluster-contracts) section.
 
 A cluster may be instantiated by using ___@deploy___:
 
@@ -265,7 +270,7 @@ As shown in the previous examples of using the ___@cluster___ macro, _CloudClust
 
 Cluster contracts are a set of key-value pairs ```k => v``` called _assumption parameters_, where ```k``` is a name and ```v``` is a value or [_platform type_](). A predefined set of assumption parameters is supported, each with a _name_ and a default value or _base platform type_. 
 
-The currently supported set of assumption parameters is listed [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl/blob/decarvalhojunior-fh-patch-1-README/README.md#list-of-instance-feature-parameters), providing a wide spectrum of assumptions for users to specify the architectural characteristics of a cluster to satisfy their needs. Note that assumption parameters are classified into cluster and instance parameters, where _instance parameters_ are the assumption parameters considered in the instance resolution procedure (_resolve_).
+The currently supported set of assumption parameters is listed [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters), providing a wide spectrum of assumptions for users to specify the architectural characteristics of a cluster to satisfy their needs. Note that assumption parameters are classified into cluster and instance parameters, where _instance parameters_ are the assumption parameters considered in the instance resolution procedure (_resolve_).
 
 In the case of ```my_first_cluster_contract```, the user uses the assumption parameters ___node_count___ and ___nodes_machinetype___ to specify that the required cluster must have four nodes and that the VM instances that comprise the cluster nodes must be of the ___t3.xlarge___ type, offered by the AWS EC2 provider. This is a direct approach, the simplest and least abstract one, where the resolution procedure, triggered by a call to __@resolve__, will return the EC2's ___t3.xlarge___ as the VM instance type that satisfies the contract.
 
@@ -463,7 +468,11 @@ The last set of configuration parameters depends on the IaaS provider selected t
 * __imageid__::```String```, the _ID_ of the image used to instantiate the VM instances that form the cluster nodes;
 * __subnet_id__::```String```, the _ID_ of a subnet for the communication between VM instances that form the cluster nodes;
 * __placement_group__::```String```, the _ID_ of an existing placement group where the user wishes to colocate the VM instances that form the cluster nodes (the default is to create a temporary placement group);
-* __security_group_id__: :```String```, the _ID_ of an existing security group for the VM instances that form the cluster nodes.
+* __security_group_id__::```String```, the _ID_ of an existing security group for the VM instances that form the cluster nodes.
+
+### The integration with PlatformAware.jl
+
+UNDER CONSTRUCTION
 
 # Publications
 
