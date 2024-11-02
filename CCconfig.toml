@@ -25,3 +25,5 @@ security_group_id = "sg-039de945285a31f89"
 subnet_id = "subnet-3fca5558"
 
 [gcp]
+
+json_credentials_path = "/home/user/GCP_config/winter-monolith.json"

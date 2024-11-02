@@ -3,8 +3,11 @@ using AWS: @service
 using Serialization
 using Base64
 using Sockets
+using GoogleCloud
 @service Ec2 
 @service Efs
+
+import .GoogleCloud: compute
 
 #=
 Estrutura para Armazenar as informações e função de criação do cluster
@@ -13,35 +16,17 @@ Estrutura para Armazenar as informações e função de criação do cluster
 
 mutable struct GCPManagerWorkers <: ManagerWorkers #Cluster
     name::String
-    instance_type_master::String
-    instance_type_worker::String
-    count::Int
-    image_id_master::String
-    image_id_worker::String
-    subnet_id::Union{String, Nothing}
-    placement_group::Union{String, Nothing}
-    auto_pg::Bool
-    security_group_id::Union{String, Nothing}
-    auto_sg::Bool
-    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-    shared_fs::Bool
-    features::Dict{Symbol, Any}
+    region::String
+    machine_type::String
+    disks::Dict{Symbol, Any}
 end
 
 
 mutable struct GCPPeerWorkers <: PeerWorkers # Cluster
     name::String
-    instance_type::String
-    count::Int
-    image_id::String
-    subnet_id::Union{String, Nothing}
-    placement_group::Union{String, Nothing}
-    auto_pg::Bool
-    security_group_id::Union{String,Nothing}
-    auto_sg::Bool
-    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-    shared_fs::Bool
-    features::Dict{Symbol, Any}
+    region::String
+    machine_type::String
+    disks::Dict{Symbol, Any}
 end
 
 mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
@@ -59,14 +44,18 @@ mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
     features::Dict{Symbol, Any}
 end
 
+function gcp_set_session()    
+    creds = JSONCredentials("./creds.json")
+    session = GoogleSession(creds, ["compute"])
+    set_session!(compute, session)
+end
+
 # PUBLIC
 function gcp_create_cluster(cluster::Cluster)
  
     cluster.cluster_nodes = gcp_create_instances(cluster)
     cluster
 end
-
-
 
 function gcp_get_ips_instance(instance_id::String)
     public_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
@@ -98,23 +87,23 @@ end
 Grupo de Alocação
 =#
 # PUBLIC
-function gcp_create_placement_group(name)
+function gcp_create_instance_group(name)
     params = Dict(
         "GroupName" => name, 
         "Strategy" => "cluster",
         "TagSpecification" => 
             Dict(
-                "ResourceType" => "placement-group",
+                "ResourceType" => "instance-group",
                 "Tag" => [Dict("Key" => "cluster", "Value" => name),
                           Dict("Key" => "Name", "Value" => name)]
             )
         )
-    Ec2.create_placement_group(params)["placementGroup"]["groupName"]
+    #Ec2.create_instance_group(params)["instanceGroup"]["groupName"]
 end
 
-function gcp_delete_placement_group(name)
+function gcp_delete_instance_group(name)
     params = Dict("GroupName" => name)
-    Ec2.delete_placement_group(name)
+    #Ec2.delete_instance_group(name)
 end
 
 #=
@@ -147,12 +136,12 @@ function gcp_create_security_group(name, description)
     params = Dict(
         "GroupId" => id, 
         "SourceSecurityGroupName" => sg_name)
-    Ec2.authorize_security_group_ingress(params)
+    #Ec2.authorize_security_group_ingress(params)
     id
 end
 
 function gcp_delete_security_group(id)
-    Ec2.delete_security_group(Dict("GroupId" => id))
+    #Ec2.delete_security_group(Dict("GroupId" => id))
 end
 
 #=
@@ -261,8 +250,6 @@ function gcp_remove_temp_files(internal_key_name)
     run(`rm /tmp/$internal_key_name`)
     run(`rm /tmp/$internal_key_name.pub`)
 end
-
-
  
 function gcp_set_hostfile(cluster_nodes, internal_key_name)
     # Testando se a conexão SSH está ativa.
@@ -528,3 +515,4 @@ function gcp_get_ips(cluster::Cluster)
     end
     ips
 end
+
