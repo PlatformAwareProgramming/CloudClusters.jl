@@ -496,7 +496,7 @@ function ec2_cluster_status(cluster::Cluster, status_list)
     return true
 end
 
-function cluster_ready(provider::Type{AmazonEC2}, cluster::Cluster; status="ok")
+function ec2_cluster_ready(provider::Type{AmazonEC2}, cluster::Cluster; status="ok")
     cluster_nodes = cluster.cluster_nodes
     for nodeid in keys(cluster_nodes)
         ec2_get_instance_check(cluster_nodes[nodeid]) != status && return false
@@ -620,7 +620,7 @@ end
 
 
 # Check if the cluster instances are running or interrupted.
-ec2_cluster_isrunning(cluster::Cluster) = ec2_cluster_status(cluster, ["running"]) && cluster_ready(AmazonEC2, cluster) 
+ec2_cluster_isrunning(cluster::Cluster) = ec2_cluster_status(cluster, ["running"]) && ec2_cluster_ready(AmazonEC2, cluster) 
 ec2_cluster_isstopped(cluster::Cluster) = ec2_cluster_status(cluster, ["stopped"])
 
 function ec2_stop_instances(cluster::Cluster)

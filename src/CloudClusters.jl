@@ -44,11 +44,9 @@ export cluster_create, @cluster,
        nodes
 
 # Cluster types
-export ManagerWorkers, PeerWorkers, PeerWorkersMPI
+export ManagerWorkers, PeerWorkers, PeerWorkersMPI, Localhost
 
 # Feature types
 export PlatformAware, select_instances, @select
-
-export Localhost
 
 end # end CloudCluster
