@@ -25,7 +25,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     auto_pg, placement_group = placement_group == "automatic" ? (true, ec2_create_placement_group(string("pgroup_", cluster_handle))) : (false, placement_group)
     auto_sg, security_group_id = security_group_id == "automatic" ? (true, ec2_create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
 
-    cluster = EC2ManagerWorkers(AmazonEC2, string(cluster_handle), instance_type_master, instance_type_worker, count, 
+    cluster = EC2ManagerWorkers(string(cluster_handle), instance_type_master, instance_type_worker, count, 
                                     imageid_master, imageid_worker, 
                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                     nothing, nothing, false, cluster_features)
@@ -74,13 +74,13 @@ end
 
 ec2_build_clusterobj(_::Type{<:PeerWorkers}, cluster_handle, instance_type, count, imageid, subnet_id, 
                                              placement_group, auto_pg, security_group_id, auto_sg, cluster_features) =  
-                                                 EC2PeerWorkers(AmazonEC2, cluster_handle, instance_type, count, imageid,
+                                                 EC2PeerWorkers(cluster_handle, instance_type, count, imageid,
                                                                 subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                                                 nothing, nothing, false, cluster_features)
 
 ec2_build_clusterobj(_::Type{<:PeerWorkersMPI}, cluster_handle, instance_type, count, imageid, subnet_id, 
                                                 placement_group, auto_pg, security_group_id, auto_sg, cluster_features) =  
-                                                  EC2PeerWorkersMPI(AmazonEC2, cluster_handle, instance_type, count, imageid,
+                                                  EC2PeerWorkersMPI(cluster_handle, instance_type, count, imageid,
                                                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                                                     nothing, nothing, false, cluster_features)
 

@@ -94,7 +94,7 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:ManagerWorkers}, cluster_han
     cluster_features = contents["cluster_features"] |> adjusttypefeatures
     shared_fs = contents["shared_fs"]
 
-    cluster = EC2ManagerWorkers(AmazonEC2, string(cluster_handle), instance_type_master, instance_type_worker, count, 
+    cluster = EC2ManagerWorkers(string(cluster_handle), instance_type_master, instance_type_worker, count, 
                                     image_id_master, image_id_worker, 
                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                     environment, cluster_nodes, shared_fs, cluster_features)
@@ -140,7 +140,7 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:PeerWorkers}, cluster_handle
     cluster_features = contents["cluster_features"] |> adjusttypefeatures
     shared_fs = contents["shared_fs"]
 
-    cluster = EC2PeerWorkers(AmazonEC2, string(cluster_handle), instance_type, count, 
+    cluster = EC2PeerWorkers(string(cluster_handle), instance_type, count, 
                                     image_id, 
                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                     environment, cluster_nodes, shared_fs, cluster_features)

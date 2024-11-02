@@ -12,7 +12,6 @@ Estrutura para Armazenar as informações e função de criação do cluster
 
 
 mutable struct GCPManagerWorkers <: ManagerWorkers #Cluster
-    provider::Type{GoogleCloud}
     name::String
     instance_type_master::String
     instance_type_worker::String
@@ -31,7 +30,6 @@ end
 
 
 mutable struct GCPPeerWorkers <: PeerWorkers # Cluster
-    provider::Type{GoogleCloud}
     name::String
     instance_type::String
     count::Int
@@ -47,7 +45,6 @@ mutable struct GCPPeerWorkers <: PeerWorkers # Cluster
 end
 
 mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
-    provider::Type{GoogleCloud}
     name::String
     instance_type::String
     count::Int
@@ -62,7 +59,7 @@ mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
     features::Dict{Symbol, Any}
 end
 
-
+# PUBLIC
 function gcp_create_cluster(cluster::Cluster)
  
     cluster.cluster_nodes = gcp_create_instances(cluster)
@@ -77,6 +74,7 @@ function gcp_get_ips_instance(instance_id::String)
     Dict(:public_ip => public_ip, :private_ip => private_ip)
 end
 
+# PUBLIC
 function gcp_terminate_cluster(cluster::Cluster)
     gcp_delete_instances(cluster.cluster_nodes) 
     for instance in cluster.cluster_nodes
@@ -99,6 +97,7 @@ end
 #=
 Grupo de Alocação
 =#
+# PUBLIC
 function gcp_create_placement_group(name)
     params = Dict(
         "GroupName" => name, 
@@ -121,6 +120,7 @@ end
 #=
 Grupo de Segurança 
 =#
+# PUBLIC
 function gcp_create_security_group(name, description)
     # Criamos o grupo
     params = Dict(
@@ -422,6 +422,7 @@ function gcp_await_check(cluster_nodes, status)
     end
 end
 
+# PUBLIC
 function gcp_cluster_status(cluster::Cluster, status_list)
     cluster_nodes = cluster.cluster_nodes
     for nodeid in keys(cluster_nodes)
@@ -430,7 +431,7 @@ function gcp_cluster_status(cluster::Cluster, status_list)
     return true
 end
 
-function gcp_cluster_ready(provider::Type{GoogleCloud}, cluster::Cluster; status="ok")
+function gcp_cluster_ready(cluster::Cluster; status="ok")
     cluster_nodes = cluster.cluster_nodes
     for nodeid in keys(cluster_nodes)
         gcp_get_instance_check(cluster_nodes[nodeid]) != status && return false
@@ -475,20 +476,23 @@ function gcp_get_instance_subnet(id)
     description["reservationSet"]["item"]["instancesSet"]["item"]["subnetId"]
 end
 
-
+# PUBLIC
 gcp_can_interrupt(cluster::Cluster) = gcp_cluster_isrunning(cluster)
 
 # Interrupt cluster instances. If someone is not in "running" state, raise an exception.
+# PUBLIC
 function gcp_interrupt_cluster(cluster::Cluster)
     gcp_stop_instances(cluster)
     gcp_await_status(cluster.cluster_nodes, "stopped")
 end
 
+# PUBLIC
 gcp_can_resume(cluster::Cluster) = gcp_cluster_status(cluster, ["stopped"])
 
 # Start interrupted cluster instances or reboot running cluster instances.
 # All instances must be in "interrupted" or "running" state.
 # If some instance is not in "interrupted" or "running" state, raise an exception.
+# PUBLIC
 function gcp_resume_cluster(cluster::Cluster)
     gcp_start_instances(cluster)
     gcp_await_status(cluster.cluster_nodes, "running")
@@ -501,7 +505,7 @@ end
 
 
 # Check if the cluster instances are running or interrupted.
-gcp_cluster_isrunning(cluster::Cluster) = gcp_cluster_status(cluster, ["running"]) && gcp_cluster_ready(GoogleCloud, cluster) 
+gcp_cluster_isrunning(cluster::Cluster) = gcp_cluster_status(cluster, ["running"]) && gcp_cluster_ready(cluster) 
 gcp_cluster_isstopped(cluster::Cluster) = gcp_cluster_status(cluster, ["stopped"])
 
 function gcp_stop_instances(cluster::Cluster)
@@ -516,6 +520,7 @@ function gcp_start_instances(cluster::Cluster)
     end
 end
 
+# PUBLIC
 function gcp_get_ips(cluster::Cluster)
     ips = Dict()
     for (node, id) in cluster.cluster_nodes
