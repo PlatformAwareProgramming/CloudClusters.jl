@@ -26,5 +26,5 @@ subnet_id = "subnet-3fca5558"
 
 [gcp]
 
-imageid = ""
-zone = ""
+imageid = "debian-9-stretch-v20191210"
+zone = "us-central1-a"
