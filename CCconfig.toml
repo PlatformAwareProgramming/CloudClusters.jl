@@ -26,4 +26,5 @@ subnet_id = "subnet-3fca5558"
 
 [gcp]
 
-json_credentials_path = "/home/user/GCP_config/winter-monolith.json"
+imageid = ""
+zone = ""
