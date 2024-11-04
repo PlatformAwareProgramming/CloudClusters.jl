@@ -494,3 +494,28 @@ function gcp_get_ips(cluster::Cluster)
     ips
 end
 
+## TESTING
+
+# function start_cluster()
+#     #start cluster
+#     try_run(`gcloud container clusters create zeus --machine-type n1-standard-2 --num-nodes 2 --zone us-central1-c`)
+#     try_run(`gcloud container clusters list`)
+# end
+
+# function config()
+#     #config
+#     try_run(`gcloud init --console-only`)
+#     try_run(`gcloud config configurations create zeus`)
+#     try_run(`gcloud config configurations list`)
+# end
+
+# function check_info()
+#     #check gcloud config/info
+#     try_run(`gcloud info`)
+# end
+
+# function check_install_kubectl()
+#     #install necessary stuff
+#     try_run(`gcloud components install kubectl`)
+#     try_run(`gcloud components update`)
+# end
