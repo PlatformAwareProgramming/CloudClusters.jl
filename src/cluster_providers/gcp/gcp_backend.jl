@@ -14,34 +14,12 @@ Estrutura para Armazenar as informações e função de criação do cluster
 =#
 
 
-mutable struct GCPManagerWorkers <: ManagerWorkers #Cluster
+mutable struct GKEcluster <: ManagerWorkers #Cluster
     name::String
+    project::String
     region::String
     machine_type::String
     disks::Dict{Symbol, Any}
-end
-
-
-mutable struct GCPPeerWorkers <: PeerWorkers # Cluster
-    name::String
-    region::String
-    machine_type::String
-    disks::Dict{Symbol, Any}
-end
-
-mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
-    name::String
-    instance_type::String
-    count::Int
-    image_id::String
-    subnet_id::Union{String, Nothing}
-    placement_group::Union{String, Nothing}
-    auto_pg::Bool
-    security_group_id::Union{String,Nothing}
-    auto_sg::Bool
-    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-    shared_fs::Bool
-    features::Dict{Symbol, Any}
 end
 
 function gcp_set_session()    
