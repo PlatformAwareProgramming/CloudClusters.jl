@@ -205,15 +205,22 @@ end
 Criação de Instâncias
 =# 
 
+
+
 # Funções auxiliares.
-function ec2_set_up_ssh_connection(cluster_name)                    
+function ec2_set_up_ssh_connection(cluster_name)  
+
+    internal_key_name = cluster_name
+
+    keypath = joinpath(homedir(), ".ssh", "$internal_key_name.key")
+    pubpath = joinpath(homedir(), ".ssh", "$internal_key_name.key.pub")
+                      
    # Criar chave interna pública e privada do SSH.
    # chars = ['a':'z'; 'A':'Z'; '0':'9']
    # random_suffix = join(chars[Random.rand(1:length(chars), 5)])
-   internal_key_name = cluster_name
-   run(`ssh-keygen -f /tmp/$internal_key_name -N ""`)
-   private_key = base64encode(read("/tmp/$internal_key_name", String))
-   public_key = base64encode(read("/tmp/$internal_key_name.pub", String))
+   run(`ssh-keygen -f $keypath -N ""`)
+   private_key = base64encode(read(keypath, String))
+   public_key = base64encode(read(pubpath, String))
   
    # Define o script que irá instalar a chave pública e privada no headnode e workers.
    user_data = "#!/bin/bash
@@ -304,8 +311,10 @@ function ec2_create_params(cluster::PeerWorkers, user_data_base64)
 end
 
 function ec2_remove_temp_files(internal_key_name)
-    run(`rm /tmp/$internal_key_name`)
-    run(`rm /tmp/$internal_key_name.pub`)
+    keypath = joinpath(homedir(), ".ssh", "$internal_key_name.key")
+    pubpath = joinpath(homedir(), ".ssh", "$internal_key_name.key.pub")
+    run(`rm $keypath`)
+    run(`rm $pubpath`)
 end
 
 
@@ -336,28 +345,20 @@ function ec2_set_hostfile(cluster_nodes, internal_key_name)
         end
     end
 
-    #=h = Threads.@spawn begin
-        public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
-        for instance in keys(cluster_nodes)
-            for instance_other in keys(cluster_nodes)
-                @info "--- $instance -> $instance_other"
-                try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "ssh $instance_other uptime"`)
-            end
-        end
-    end=#
+    keypath = joinpath(homedir(), ".ssh", "$internal_key_name.key")
 
     # Atualiza o hostname e o hostfile.
     for instance in keys(cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
        # private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
-#        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown ubuntu:ubuntu /etc/hosts"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "cat hosts.tmp > /etc/hosts"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown root:root /etc/hosts"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "rm hosts.tmp"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
+#        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown ubuntu:ubuntu /etc/hosts"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "cat hosts.tmp > /etc/hosts"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown root:root /etc/hosts"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "rm hosts.tmp"`)
     end
 
     #wait(h)
@@ -614,12 +615,14 @@ ec2_can_resume(cluster::Cluster) = ec2_cluster_status(cluster, ["stopped"])
 # If some instance is not in "interrupted" or "running" state, raise an exception.
 # PUBLIC
 function ec2_resume_cluster(cluster::Cluster)
+    keypath = joinpath(homedir(), ".ssh", "$(cluster.name).key")
+
     ec2_start_instances(cluster)
     ec2_await_status(cluster.cluster_nodes, "running")
     ec2_await_check(cluster.cluster_nodes, "ok")
     for instance in keys(cluster.cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster.cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
-        try_run(`ssh -i /tmp/$(cluster.name) -o StrictHostKeyChecking=no ubuntu@$public_ip uptime`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip uptime`)
     end
 end
 

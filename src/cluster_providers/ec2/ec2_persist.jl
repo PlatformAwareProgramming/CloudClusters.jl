@@ -157,6 +157,7 @@ end
 function ec2_delete_cluster(cluster_handle)
     configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
     rm(joinpath(configpath, "$cluster_handle.cluster"))
+    ec2_remove_temp_files(cluster_handle)
 end
 
 

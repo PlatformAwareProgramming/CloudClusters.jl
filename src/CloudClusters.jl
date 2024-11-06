@@ -2,7 +2,8 @@ module CloudClusters
 
 using Distributed
 using MPIClusterManagers
-using PlatformAware
+using Reexport
+@reexport using PlatformAware
 using Base.Threads
 using Dates
 using TOML

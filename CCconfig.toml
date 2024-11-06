@@ -4,7 +4,7 @@
 user = "ubuntu"
 sshflags = "-i /home/heron/hpc-shelf-credential.pem" 
 exename = "/home/ubuntu/.juliaup/bin/julia"
-directory = "/home/ubuntu/heron/NPBApps.jl"
+directory = "/home/ubuntu/heron/SplitNN-testing/cloudclustersjl_studycase"
 exeflags = "--threads=1 --check-bounds=no --optimize=3"
 tunneled = true
 threadlevel = "multiple"
@@ -18,7 +18,7 @@ mpiflags = ""
 [ec2]
 
 #imageid = "ami-07f6c5b6de73be7ae"
-imageid = "ami-086a05529e8fd8ca2"
+imageid = "ami-027e5c2b8d9170174"
 #placement_group = "automatic"
 #"default_placement_group"
 security_group_id = "sg-039de945285a31f89"

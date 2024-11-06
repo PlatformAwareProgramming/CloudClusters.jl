@@ -449,9 +449,9 @@ function cluster_reconnect(cluster_handle::Symbol)
 
     if !isempty(cluster_info)
         cluster_provider = cluster_info[:provider]
+        cluster_features = cluster_info[:features]
+        cluster_deploy_info[cluster_handle] = Dict(:pids => Vector{Int}(), :features => cluster_features)
         if cluster_isrunning(cluster_provider, cluster_handle) 
-            cluster_features = cluster_info[:features]
-            cluster_deploy_info[cluster_handle] = Dict(:pids => Vector{Int}(), :features => cluster_features)
             ips = get_ips(cluster_provider, cluster_handle)
             cluster_type = cluster_features[:cluster_type]
             pids = nothing
