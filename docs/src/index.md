@@ -1,4 +1,4 @@
-# CloudClusters.jl
+![CloudClusters.jl](https://raw.githubusercontent.com/PlatformAwareProgramming/CloudClusters.jl/refs/heads/main/docs/src/assets/logo-text.svg)
 
 _A package for creating, using, and managing clusters of virtual machine (VM) instances deployed with IaaS cloud providers._
 
@@ -18,7 +18,7 @@ _CloudClusters.jl_ targets Julia programming language users who need on-demand a
 
 Even though _CloudClusters.jl_ currently only supports AWS EC2, it plans to support multiple IaaS cloud providers in the future. 
 
-_CloudClusters.jl_ assumes that the user has properly configured the environment with their credentials to access the services of each provider they intend to use. 
+_CloudClusters.jl_ assumes that the user has configured their credentials for the services of their preferred cloud providers in the environment.
 
 ### The configuration file (_CCconfig.toml_)
 
@@ -28,7 +28,7 @@ Creating clusters with _CloudClusters.jl_ requires specifying some configuration
   
 Default configuration parameters can be overridden in programs. 
 
-A description of each configuration parameter and how programs can override their default values from _CCconfig.toml_ is presented in a further section. Click [here](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters) to go there.
+Section [Configuration parameters](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters) describes configuration parameters and how they can be overridden in programs.
 
 ### The _PlatformAware.jl_ package
 
