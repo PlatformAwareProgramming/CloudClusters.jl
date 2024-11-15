@@ -94,7 +94,7 @@ After __@deploy__, a set of _worker processes_ is created, one at each cluster n
 In the following code, the user fetches the _PIDs_ of the processes running at the nodes of the cluster referred to by ```my_first_cluster```.
 
 ```julia-repl
-julia> nodes(my_first_cluster)
+julia> @nodes my_first_cluster
 4-element Vector{Int64}
 2
 3
@@ -118,7 +118,7 @@ The following code, adapted from [The ultimate guide to distributed computing in
 ```julia
 using Distributed
 
-@everywhere nodes(my_first_cluster) begin
+@everywhere cluster_nodes(my_first_cluster) begin
   # load dependencies
   using ProgressMeter
   using CSV
@@ -148,7 +148,7 @@ infiles  = readdir(indir, join=true)
 outfiles = joinpath.(outdir, basename.(infiles))
 nfiles   = length(infiles)
 
-status = @showprogress pmap(1:nfiles; pids=nodes(my_first_cluster)) do i
+status = @showprogress pmap(1:nfiles; pids=cluster_nodes(my_first_cluster)) do i
   try
     process(infiles[i], outfiles[i])
     true   # success
@@ -181,7 +181,7 @@ This is an advanced use of cluster contracts, requiring instance types that sati
 Now, there are three available clusters. The _PIDs_ of the last two ones may also be inspected:
 
 ```julia-repl
-julia> nodes(my_second_cluster)
+julia> @nodes my_second_cluster
 8-element Vector{Int64}
 6
 7
@@ -192,7 +192,7 @@ julia> nodes(my_second_cluster)
 12
 13
 
-julia> nodes(my_third_cluster)
+julia> @ nodes my_third_cluster
 8-element Vector{Int64}
 14
 15
@@ -392,7 +392,7 @@ The following code launches a simple _MPI.jl_ code in _my_fourth_cluster_, using
 
 ```julia
 
-@everywhere nodes(my_fourth_cluster) begin
+@everywhere cluster_nodes(my_fourth_cluster) begin
    @eval using MPI
    MPI.Init()
    rank = MPI.Comm_rank(MPI.COMM_WORLD)

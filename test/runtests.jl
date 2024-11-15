@@ -1,9 +1,10 @@
 using CloudClusters
 using Test  
+using Distributed
 
 # list of tests
 testfiles = [
-    "basics.jl"
+    "localcluster.jl" 
 ]
 
 @testset "CloudClusters.jl" begin

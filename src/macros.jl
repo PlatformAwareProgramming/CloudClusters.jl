@@ -53,7 +53,8 @@ macro resolve(contract_ids...)
     for contract_id in contract_ids
         push!(resolve_calls, Expr(:call, :cluster_resolve, contract_id))
     end
-    esc(Expr(:vect, resolve_calls...))
+    b = length(contract_ids) > 1 ? :vect : :block
+    esc(Expr(b, resolve_calls...))
 end
 
 macro deploy(contract_id, features...)
@@ -69,7 +70,8 @@ macro interrupt(cluster_handles...)
     for cluster_id in cluster_handles
         push!(interrupt_calls, Expr(:call, :cluster_interrupt, cluster_id))
     end
-    esc(Expr(:block, interrupt_calls...))
+    b = length(cluster_handles) > 1 ? :vect : :block
+    esc(Expr(b, interrupt_calls...))
 end
 
 macro resume(cluster_handles...)
@@ -77,7 +79,8 @@ macro resume(cluster_handles...)
     for cluster_id in cluster_handles
         push!(resume_calls, Expr(:call, :cluster_resume, cluster_id))
     end
-    esc(Expr(:block, resume_calls...))
+    b = length(cluster_handles) > 1 ? :vect : :block
+    esc(Expr(b, resume_calls...))
 end
 
 macro terminate(cluster_handles...)
@@ -85,7 +88,8 @@ macro terminate(cluster_handles...)
     for cluster_id in cluster_handles
         push!(terminate_calls, Expr(:call, :cluster_terminate, cluster_id))
     end
-    esc(Expr(:block, terminate_calls...))
+    b = length(cluster_handles) > 1 ? :vect : :block
+    esc(Expr(b, terminate_calls...))
 end
 
 macro select(features...)
@@ -125,16 +129,33 @@ macro clusters(params...)
     esc(call)
 end
 
-macro restart(cluster_handle)
-    call = Expr(:call, :cluster_restart, cluster_handle)
+macro restart(cluster_handles...)
+    restart_calls = Vector()
+    for cluster_id in cluster_handles
+        push!(restart_calls, Expr(:call, :cluster_restart, cluster_id))
+    end
+    b = length(cluster_handles) > 1 ? :vect : :block
+    esc(Expr(b, restart_calls...))
+end
+
+macro reconnect(cluster_handles...)
+    reconnect_calls = Vector()
+    for cluster_id in cluster_handles
+        push!(reconnect_calls, Expr(:call, :cluster_reconnect, cluster_id))
+    end
+    b = length(cluster_handles) > 1 ? :vect : :block
+    esc(Expr(b, reconnect_calls...))
+end
+
+macro features(cluster_handle)
+    call = Expr(:call, :cluster_features, cluster_handle)
     esc(call)
 end
 
-macro reconnect(cluster_handle)
-    call = Expr(:call, :cluster_reconnect, cluster_handle)
+macro nodes(cluster_handle)
+    call = Expr(:call, :cluster_nodes, cluster_handle)
     esc(call)
 end
-
 
 macro status(cluster_handle)
 end

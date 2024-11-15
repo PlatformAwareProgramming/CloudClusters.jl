@@ -1,10 +1,17 @@
 cluster_contract_resolved = Dict()
 
 function cluster_resolve(contract_handle)
-    
-    cluster_type, cluster_features = cluster_contract[contract_handle]
+    try    
+        !is_contract(contract_handle) && error("The symbol $contract_handle is not a contract handle")
 
-    cluster_resolve(cluster_type, cluster_features, contract_handle)
+        cluster_type, cluster_features = cluster_contract[contract_handle]
+
+        cluster_resolve(cluster_type, cluster_features, contract_handle)
+    catch e
+        println(e)
+        return :fail
+    end
+    return :success
 end
 
 function cluster_resolve(_::Type{<:ManagerWorkers}, cluster_features, contract_handle)

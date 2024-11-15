@@ -38,7 +38,7 @@ function cluster_create(args...)
     
     cluster_features = Dict{Symbol, Any}(args)
 
-    # default cluster type
+    # set default cluster type
     !haskey(cluster_features, :cluster_type) && (cluster_features[:cluster_type] = PeerWorkers)
     
     cluster_type  = cluster_features[:cluster_type]
@@ -50,12 +50,14 @@ function cluster_create(args...)
     return contract_handle
 end
 
+is_contract(handle) = haskey(cluster_contract, handle)
+
 
 #cluster_reconnect_cache = Dict()
 
 function cluster_list(;from = DateTime(0), cluster_type = :AnyCluster)
 
-    @assert cluster_type in [:AnyCluster, :ManagerWorkers, :PeerWorkers]
+    !(cluster_type in [:AnyCluster, :ManagerWorkers, :PeerWorkers, :PeerWorkersMPI]) && error("$cluster_type is not a valid cluster type.")
 
     result = Vector()
 

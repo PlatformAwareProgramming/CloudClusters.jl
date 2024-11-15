@@ -39,7 +39,8 @@ function extract_mwfeature(cluster_features, provider_type, featureid)
   
 function cluster_deploy(contract_handle, config_args...)
 
-    @assert(haskey(cluster_contract_resolved, contract_handle), "Unable to deploy based on an unresolved contract (contract handle is :$contract_handle)")
+    !is_contract(contract_handle) && error("The symbol $contract_handle is not a contract handle")
+    !is_resolved(contract_handle) && error("The contract $contract_handle is not resolved. Run '@resolve $contract_handle' to resolve it before deploy.")
 
     more_cluster_features = Dict{Symbol, Any}(config_args)
     
@@ -361,84 +362,115 @@ end
 
 
 function cluster_interrupt(cluster_handle)
-    cluster_features = cluster_deploy_info[cluster_handle][:features]
-    node_provider = cluster_features[:node_provider]
-    @assert(can_interrupt(node_provider, cluster_handle), "cluster is not running") 
-    cluster_type = cluster_features[:cluster_type]
-    kill_processes(cluster_handle, cluster_type, cluster_features)
-    interrupt_cluster(node_provider, cluster_handle)
+    try
+        check_cluster_handle(cluster_handle)
+        cluster_features = cluster_deploy_info[cluster_handle][:features]
+        node_provider = cluster_features[:node_provider]
+        !can_interrupt(node_provider, cluster_handle) && error("cluster $cluster_handle cannot be interrupted") 
+        cluster_type = cluster_features[:cluster_type]
+        kill_processes(cluster_handle, cluster_type, cluster_features)
+        interrupt_cluster(node_provider, cluster_handle)
+        @info "the cluster $cluster_handle has been interrupted"
+    catch e
+        println(e)
+        return :fail
+    end
+    return :success
 end
 
 function cluster_resume(cluster_handle)
-    cluster_features = cluster_deploy_info[cluster_handle][:features]
-    node_provider = cluster_features[:node_provider]
-    @assert(can_resume(node_provider, cluster_handle), "cluster is not stopped") 
-    ips = resume_cluster(node_provider, cluster_handle) 
-    cluster_type = cluster_features[:cluster_type]
-
-    pids = nothing
     try
-        pids = launch_processes(node_provider, cluster_type, cluster_handle, ips)
-    catch e 
-        @warn "some error creating processes for cluster $cluster_handle ($e)"
-    end
+        check_cluster_handle(cluster_handle)
+        cluster_features = cluster_deploy_info[cluster_handle][:features]
+        node_provider = cluster_features[:node_provider]
+        !can_resume(node_provider, cluster_handle) && error("cluster $cluster_handle cannot be resumed") 
+        ips = resume_cluster(node_provider, cluster_handle) 
+        cluster_type = cluster_features[:cluster_type]
 
-    if !isnothing(pids)
-        cluster_deploy_info[cluster_handle][:pids] = pids
-    else
-        @error "resume partially failed due to an unrecoverable error in launching processes"
-    end
+        pids = nothing
+        try
+            pids = launch_processes(node_provider, cluster_type, cluster_handle, ips)
+        catch e 
+            @warn "some error creating processes for cluster $cluster_handle ($e)"
+        end
 
-    return nothing
+        if !isnothing(pids)
+            cluster_deploy_info[cluster_handle][:pids] = pids
+        else
+            @error "resume partially failed due to an unrecoverable error in launching processes"
+        end
+
+        @info "the cluster $cluster_handle has been resumed"
+    catch e
+        println(e)
+        return :fail
+    end
+    return :success
 end
 
+terminated_cluster = Dict()
+
 function cluster_terminate(cluster_handle)
-    cluster_features = cluster_deploy_info[cluster_handle][:features]
-    node_provider = cluster_features[:node_provider]
-    cluster_isrunning(node_provider, cluster_handle) && kill_processes(cluster_handle, cluster_features[:cluster_type], cluster_features)
-    terminate_cluster(node_provider, cluster_handle)
-    delete!(cluster_deploy_info, cluster_handle)
+    try    
+        check_cluster_handle(cluster_handle)
+        cluster_features = cluster_deploy_info[cluster_handle][:features]
+        node_provider = cluster_features[:node_provider]
+        cluster_isrunning(node_provider, cluster_handle) && kill_processes(cluster_handle, cluster_features[:cluster_type], cluster_features)
+        terminate_cluster(node_provider, cluster_handle)
+        terminated_cluster[cluster_handle] = cluster_deploy_info[cluster_handle]
+        delete!(cluster_deploy_info, cluster_handle)
+        @info "the cluster $cluster_handle has been terminated"
+    catch e
+        println(e)
+        return :fail
+    end
+    return :success
 end
 
 function kill_processes(cluster_handle, _::Type{<:ManagerWorkers}, cluster_features)
     pids = cluster_deploy_info[cluster_handle][:pids]
     if !isempty(pids) 
-        remotecall_fetch(rmprocs, pids[1], workers(role=:master), role=:master)
+        @fetchfrom pids[1] rmprocs(workers(role=:master))
         rmprocs(pids)
     end
-    @info "pids $pids removed (peers)"
+    empty!(cluster_deploy_info[cluster_handle][:pids])
+    @info "pids $pids removed (manager)"
 end
 
 function kill_processes(cluster_handle, _::Type{<:PeerWorkers}, cluster_features)
     pids = cluster_deploy_info[cluster_handle][:pids]
-    !isempty(pids) && rmprocs(pids)
+    if !isempty(pids) 
+        rmprocs(pids)
+        empty!(cluster_deploy_info[cluster_handle][:pids])
+    end
     @info "pids $pids removed (peers)"
 end
 
 
 function cluster_restart(cluster_handle::Symbol)
-    cluster_features = cluster_deploy_info[cluster_handle][:features]
-    cluster_provider = cluster_features[:node_provider]
-    @assert(can_interrupt(cluster_provider, cluster_handle), "cluster is not running")
-    cluster_type = cluster_features[:cluster_type]
-    kill_processes(cluster_handle, cluster_type, cluster_features)
-    ips = get_ips(cluster_provider, cluster_handle) 
-
-    pids = nothing
     try
+        check_cluster_handle(cluster_handle)
+        cluster_features = cluster_deploy_info[cluster_handle][:features]
+        cluster_provider = cluster_features[:node_provider]
+        !cluster_isrunning(cluster_provider, cluster_handle) && error("cluster is not running")
+        cluster_type = cluster_features[:cluster_type]
+        kill_processes(cluster_handle, cluster_type, cluster_features)
+        ips = get_ips(cluster_provider, cluster_handle) 
+
         pids = launch_processes(cluster_provider, cluster_type, cluster_handle, ips)
-    catch e 
-        @warn "some error creating processes for cluster $cluster_handle ($e)"
-    end
-
-    if !isnothing(pids)
         cluster_deploy_info[cluster_handle][:pids] = pids
-        return pids
-    else
-        @error "resume partially failed due to an unrecoverable error in launching processes"
-        return Vector{Int}()
+    catch e
+        println(e)
+        return :fail
     end
 
+    return :success
+end
+
+function check_cluster_handle(cluster_handle)
+    is_contract(cluster_handle) && error("The symbol $cluster_handle is a contract handle. You must submit a cluster handle.")
+    haskey(terminated_cluster, cluster_handle) && error("cluster $cluster_handle has been terminated")
+    !haskey(cluster_deploy_info, cluster_handle) && error("cluster $cluster_handle not found")
 end
 
 get_user(cluster_features) =  get(cluster_features, :user, defaults_dict[Provider][:user])
@@ -499,9 +531,8 @@ function report_exception(e)
     end
 end
 
-function nodes(cluster_handle::Symbol)
-    @assert(haskey(cluster_deploy_info, cluster_handle), "cluster not found (cluster handle = $cluster_handle)")
-
+function cluster_nodes(cluster_handle)
+    check_cluster_handle(cluster_handle)
     cluster_deploy_info[cluster_handle][:pids]
 end
 
@@ -536,4 +567,8 @@ function load_cluster(cluster_handle::String; from = DateTime(0), cluster_type =
         @error "cluster $cluster_handle not found"
     end
     return result
+end
+
+function cluster_features(cluster_handle)
+    Dict(cluster_deploy_info[cluster_handle][:features])
 end

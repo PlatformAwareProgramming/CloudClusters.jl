@@ -65,11 +65,23 @@ function interrupt_cluster(_::Type{Localhost}, cluster_handle)
    # NOTHING TO DO 
 end
 
+function can_interrupt(_::Type{Localhost}, cluster_handle)  
+    @assert !haskey(ec2_cluster_info, cluster_handle)
+    @warn "local clusters cannot be interrupted/resumed"
+    false
+end
+
 #==== CONTINUE CLUSTER ====#
 
 function resume_cluster(type::Type{Localhost}, cluster_handle)
     _, _, ips = local_cluster_info[cluster_handle]
     return ips
+end
+
+function can_resume(_::Type{Localhost}, cluster_handle) 
+    @assert !haskey(ec2_cluster_info, cluster_handle)
+    @warn "local clusters cannot be interrupted/resumed"
+    false
 end
 
 #==== TERMINATE CLUSTER ====#

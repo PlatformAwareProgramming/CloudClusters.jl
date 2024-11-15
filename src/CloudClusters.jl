@@ -42,7 +42,8 @@ export cluster_create, @cluster,
        cluster_list, @clusters,
        cluster_reconnect, @reconnect,
        cluster_restart, @restart,
-       nodes
+       cluster_features, @features,
+       cluster_nodes, @nodes
 
 # Cluster types
 export ManagerWorkers, PeerWorkers, PeerWorkersMPI, Localhost
