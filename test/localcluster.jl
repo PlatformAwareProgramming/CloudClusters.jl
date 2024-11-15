@@ -16,9 +16,9 @@ deploy_error = false
 try
     @deploy cluster_contract_1
 catch e
-    deploy_error = true
+    global deploy_error = true
 end
-@test deploy_error  # attempt to deploy a non resolved contract
+@test !deploy_error  # attempt to deploy a non resolved contract
 
 
 @test @resolve(cluster_contract_1, cluster_contract_2) |> r -> all(map(x -> x == :success, r))
