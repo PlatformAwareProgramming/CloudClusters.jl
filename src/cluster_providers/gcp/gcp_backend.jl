@@ -3,42 +3,96 @@ using AWS: @service
 using Serialization
 using Base64
 using Sockets
-using GoogleCloud
-@service Ec2 
-@service Efs
 
-import .GoogleCloud: compute
+import GoogleCloud as GCPAPI
+
+# Creates a GCP session and stores it.
+gcp_session = GCPAPI.GoogleSession("/home/.gcp/credentials.json", ["cloud-platform"])
+GCPAPI.set_session!(GCPAPI.compute, gcp_session)
+
 
 #=
 Estrutura para Armazenar as informações e função de criação do cluster
 =#
 
-
-mutable struct GKEcluster <: ManagerWorkers #Cluster
+mutable struct GCPManagerWorkers <: ManagerWorkers #Cluster
     name::String
-    project::String
-    region::String
-    machine_type::String
-    disks::Dict{Symbol, Any}
+    source_image_master::String
+    source_image_worker::String
+    count::Int
+#=     instance_type_master::String
+    instance_type_worker::String
+    count::Int
+    image_id_master::String
+    image_id_worker::String
+    subnet_id::Union{String, Nothing}
+    placement_group::Union{String, Nothing}
+    auto_pg::Bool
+    security_group_id::Union{String, Nothing}
+    auto_sg::Bool
+    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
+    shared_fs::Bool
+    features::Dict{Symbol, Any} =#
 end
 
-function gcp_set_session()    
-    creds = JSONCredentials("./creds.json")
-    session = GoogleSession(creds, ["compute"])
-    set_session!(compute, session)
+
+mutable struct GCPPeerWorkers <: PeerWorkers # Cluster
+    name::String
+    source_image::String
+    count::Int
+    instance_type::String
+    zone::String
+#=     instance_type::String
+    count::Int
+    image_id::String
+    subnet_id::Union{String, Nothing}
+    placement_group::Union{String, Nothing}
+    auto_pg::Bool
+    security_group_id::Union{String,Nothing}
+    auto_sg::Bool
+    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
+    shared_fs::Bool
+    features::Dict{Symbol, Any} =#
+end
+
+mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
+    name::String
+    #source_image::String
+    #count::Int
+#=     instance_type::String
+    count::Int
+    image_id::String
+    subnet_id::Union{String, Nothing}
+    placement_group::Union{String, Nothing}
+    auto_pg::Bool
+    security_group_id::Union{String,Nothing}
+    auto_sg::Bool
+    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
+    shared_fs::Bool
+    features::Dict{Symbol, Any} =#
 end
 
 # PUBLIC
+"""
+Creates a compute instances cluster and returns it.
+
+-> Cluster
+"""
 function gcp_create_cluster(cluster::Cluster)
- 
     cluster.cluster_nodes = gcp_create_instances(cluster)
-    cluster
+    
+    return cluster
 end
 
+
+"""
+-> Dict
+"""
 function gcp_get_ips_instance(instance_id::String)
     public_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
     private_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
-    Dict(:public_ip => public_ip, :private_ip => private_ip)
+    
+    return Dict(:public_ip => public_ip, :private_ip => private_ip)
 end
 
 # PUBLIC
@@ -65,23 +119,24 @@ end
 Grupo de Alocação
 =#
 # PUBLIC
-function gcp_create_instance_group(name)
+function gcp_create_placement_group(name)
     params = Dict(
         "GroupName" => name, 
         "Strategy" => "cluster",
         "TagSpecification" => 
             Dict(
-                "ResourceType" => "instance-group",
+                "ResourceType" => "placement-group",
                 "Tag" => [Dict("Key" => "cluster", "Value" => name),
                           Dict("Key" => "Name", "Value" => name)]
             )
         )
-    #Ec2.create_instance_group(params)["instanceGroup"]["groupName"]
+    
+    return Ec2.create_placement_group(params)["placementGroup"]["groupName"]
 end
 
-function gcp_delete_instance_group(name)
+function gcp_delete_placement_group(name)
     params = Dict("GroupName" => name)
-    #Ec2.delete_instance_group(name)
+    Ec2.delete_placement_group(name)
 end
 
 #=
@@ -114,12 +169,12 @@ function gcp_create_security_group(name, description)
     params = Dict(
         "GroupId" => id, 
         "SourceSecurityGroupName" => sg_name)
-    #Ec2.authorize_security_group_ingress(params)
-    id
+    Ec2.authorize_security_group_ingress(params)
+    return id
 end
 
 function gcp_delete_security_group(id)
-    #Ec2.delete_security_group(Dict("GroupId" => id))
+    Ec2.delete_security_group(Dict("GroupId" => id))
 end
 
 #=
@@ -150,7 +205,7 @@ sed -i 's/#ClientAliveInterval 0/ClientAliveInterval 1000/g' /etc/ssh/sshd_confi
 sed -i 's/#ClientAliveCountMax 3/ClientAliveCountMax 100/g' /etc/ssh/sshd_config
 systemctl restart ssh
 "
-   [internal_key_name, user_data]
+   return [internal_key_name, user_data]
 end
 
 function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
@@ -193,13 +248,13 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
         params_workers["SecurityGroupId"] = [cluster.security_group_id]
     end
 
-    params_master, params_workers
+    return params_master, params_workers
 end
  
 function gcp_create_params(cluster::PeerWorkers, user_data_base64)
-    params = Dict(
+#=     params = Dict(
         "InstanceType" => cluster.instance_type,
-        "ImageId" => cluster.image_id,
+        "ImageId" => cluster.source_image,
         "TagSpecification" => 
             Dict(
                 "ResourceType" => "instance",
@@ -207,27 +262,61 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
                           Dict("Key" => "Name", "Value" => "peer") ]
             ),
         "UserData" => user_data_base64,
-    )
+    ) =#
 
-    if !isnothing(cluster.subnet_id)
-        params["SubnetId"] = cluster.subnet_id
+    params = Vector{Dict}()
+    
+    for i = 1:cluster.count
+        push!(params, Dict(
+            "disks" => [Dict(
+                "autoDelete" => true,
+                "boot" => true,
+                "initializeParams" => Dict(
+                    "diskSizeGb" => 50,
+                    "sourceImage" => "projects/$(cluster.source_image)"
+                ),
+                "mode" => "READ_WRITE",
+                "type" => "PERSISTENT"
+            )],
+            "zone" => cluster.zone,
+            "machineType" => "zones/$(cluster.zone)/machineTypes/e2-standard-2",
+            "name" => lowercase(cluster.name) * string(i),
+            "networkInterfaces" => [Dict(
+                "accessConfigs" => [Dict(
+                    "name" => "external-nat",
+                    "type" => "ONE_TO_ONE_NAT"
+                )],
+                "network" => "https://www.googleapis.com/compute/v1/projects/cloudclusters/global/networks/default"
+            )],
+            "metadata" => 
+                "items" => Dict(
+                    "key" => "startup-script",
+                    "value" => user_data_base64
+            )
+        ))
     end
 
-    if !isnothing(cluster.placement_group)
+#=     if !isnothing(cluster.zone)
+        params["zone"] = cluster.zone
+    end =#
+
+#=     if !isnothing(cluster.placement_group)
         params["Placement"] = Dict("GroupName" => cluster.placement_group)
-    end
+    end =#
 
-    if !isnothing(cluster.security_group_id)
+#=     if !isnothing(cluster.security_group_id)
         params["SecurityGroupId"] = [cluster.security_group_id]
-    end
+    end =#
 
-    params
+    return params
 end
 
 function gcp_remove_temp_files(internal_key_name)
     run(`rm /tmp/$internal_key_name`)
     run(`rm /tmp/$internal_key_name.pub`)
 end
+
+
  
 function gcp_set_hostfile(cluster_nodes, internal_key_name)
     # Testando se a conexão SSH está ativa.
@@ -342,8 +431,7 @@ function gcp_create_instances(cluster::PeerWorkers)
     params = gcp_create_params(cluster, user_data_base64)
 
     # Criar os Peers.
-    count = cluster.count
-    instances_peers = Ec2.run_instances(count, count, params)
+    instances_peers = compute_instance_insert(cluster, params)
     for i in 1:count
         instance = ""
         if count > 1
@@ -363,6 +451,14 @@ function gcp_create_instances(cluster::PeerWorkers)
    # gcp_remove_temp_files(internal_key_name)
 
     cluster_nodes
+end
+
+function compute_instance_insert(cluster::Cluster, params)
+    for i = 1:cluster.count
+        GCPAPI.compute(:Instance, :insert, defaults_dict[GoogleCloud][:project], cluster.zone; data=params[i])
+    end
+
+    return GCPAPI.compute(:Instance, :list, defaults_dict[GoogleCloud][:project], cluster.zone)
 end
 
 function gcp_await_status(cluster_nodes, status)
@@ -493,29 +589,3 @@ function gcp_get_ips(cluster::Cluster)
     end
     ips
 end
-
-## TESTING
-
-# function start_cluster()
-#     #start cluster
-#     try_run(`gcloud container clusters create zeus --machine-type n1-standard-2 --num-nodes 2 --zone us-central1-c`)
-#     try_run(`gcloud container clusters list`)
-# end
-
-# function config()
-#     #config
-#     try_run(`gcloud init --console-only`)
-#     try_run(`gcloud config configurations create zeus`)
-#     try_run(`gcloud config configurations list`)
-# end
-
-# function check_info()
-#     #check gcloud config/info
-#     try_run(`gcloud info`)
-# end
-
-# function check_install_kubectl()
-#     #install necessary stuff
-#     try_run(`gcloud components install kubectl`)
-#     try_run(`gcloud components update`)
-# end

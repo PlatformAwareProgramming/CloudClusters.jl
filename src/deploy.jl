@@ -54,11 +54,11 @@ function cluster_deploy(contract_handle, config_args...)
     cluster_deploy_info[cluster_handle] = Dict(:pids => Vector{Int}(), :features => cluster_features)
  
     pids = nothing
-    try
+    #try
         pids = cluster_deploy(cluster_type, cluster_handle, cluster_features, instance_type)
-    catch e
-        @warn "some error deploying cluster $cluster_handle ($e)"
-    end
+    #catch e
+    #    @warn "some error deploying cluster $cluster_handle ($e)"
+    #end
 
     if !isnothing(pids) 
         cluster_deploy_info[cluster_handle][:pids] = pids

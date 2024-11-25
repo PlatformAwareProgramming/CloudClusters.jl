@@ -4,7 +4,7 @@
 user = "ubuntu"
 sshflags = "-i /home/heron/hpc-shelf-credential.pem" 
 exename = "/home/ubuntu/.juliaup/bin/julia"
-directory = "/home/ubuntu/heron/NPBApps.jl"
+directory = "/home/ubuntu/"
 exeflags = "--threads=1 --check-bounds=no --optimize=3"
 tunneled = true
 threadlevel = "multiple"
@@ -26,5 +26,6 @@ subnet_id = "subnet-3fca5558"
 
 [gcp]
 
-imageid = "debian-9-stretch-v20191210"
+source_image = "ubuntu-os-pro-cloud/global/images/ubuntu-pro-2404-noble-amd64-v20241115"
 zone = "us-central1-a"
+project = "cloudclusters"

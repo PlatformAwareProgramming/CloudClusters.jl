@@ -27,7 +27,7 @@ for (instance_type, instance_info) in db
         accelerator_memory_size = accelerator_specs[ACCELERATOR_MEM_SIZE]
     else
         if accelerator_desc != "na"
-            @warn "The $accelerator_desc accelerator is not registered in the database."
+            #@warn "The $accelerator_desc accelerator is not registered in the database."
         end
         accelerator_type = "AcceleratorType"
         accelerator_arch = "AcceleratorArchitecture"
@@ -44,7 +44,7 @@ for (instance_type, instance_info) in db
         processor_man = processor_specs[PROCESSOR_MAN_INDEX]
     else
         if processor_desc != "na"
-            @warn "The $processor_desc processor is not registered in the database."
+            #@warn "The $processor_desc processor is not registered in the database."
         end
         processor_model = "Processor"
         processor_arch = "ProcessorMicroarchitecture"

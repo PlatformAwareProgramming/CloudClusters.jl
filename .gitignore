@@ -1,2 +1,5 @@
 Manifest.toml
+
+### Testing related ###
+example.cluster
 tests/

@@ -1,14 +1,41 @@
 
+gcp_cluster_info = Dict()
+
 # 1. creates a worker process in the master node
 # 2. from the master node, create worker processes in the compute nodes with MPIClusterManager
-function deploy_cluster(type::Type{GoogleCloud}, mode::Type{LinkMode}, features)
-    
+function deploy_cluster(_::Type{GoogleCloud},
+                    _::Type{<:ManagerWorkers},
+                    cluster_handle,
+                    features)
+    cluster = GCPManagerWorkers(string(cluster_handle))
+
+    gcp_create_cluster(cluster)
+
+    gcp_cluster_info[cluster_handle] = cluster
+
+    return cluster
 end
 
 # 1. run the script to clusterize the nodes
 # 2. call deploy_cluster to link ...
-function deploy_cluster(type::Type{GoogleCloud}, mode::Type{ClusterizeMode}, features)
+function deploy_cluster(_::Type{GoogleCloud}, 
+                    _::Type{<:PeerWorkers},
+                    _::Type{<:CreateMode},
+                    cluster_handle,
+                    cluster_features,
+                    instance_type)
 
+    node_count = get(cluster_features, :node_count, 1)
+    source_image = get(cluster_features, :source_image, defaults_dict[GoogleCloud][:source_image]) 
+    zone = get(cluster_features, :zone, defaults_dict[GoogleCloud][:zone]) 
+
+    cluster = GCPPeerWorkers(string(cluster_handle), source_image, node_count, instance_type, zone)
+
+    gcp_create_cluster(cluster)
+
+    gcp_cluster_info[cluster_handle] = cluster
+
+    return cluster
 end
 
 # 1. create a set of GCP instances using the GCP API
@@ -38,3 +65,5 @@ end
 function terminate_cluster(type::Type{GoogleCloud}, cluster_handle)
     
 end
+
+cluster_isrunning(_::Type{GoogleCloud}, cluster_handle) = gcp_cluster_info[cluster_handle] |> gcp_cluster_isrunning
