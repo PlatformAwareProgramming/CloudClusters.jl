@@ -594,5 +594,5 @@ function gcp_get_ips(cluster::Cluster)
 end
 
 function gcp_get_instance_dict(cluster::Cluster)
-    return JSON.parse(String(compute(:Instance, :get, defaults_dict[GoogleCloud][:project], cluster.zone, cluster.name)))
+    return JSON.parse(String(GCPAPI.compute(:Instance, :get, defaults_dict[GoogleCloud][:project], cluster.zone, cluster.name)))
 end
