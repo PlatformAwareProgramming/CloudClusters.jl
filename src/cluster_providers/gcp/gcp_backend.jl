@@ -4,6 +4,8 @@ using Serialization
 using Base64
 using Sockets
 
+using JSON
+
 import GoogleCloud as GCPAPI
 
 # Creates a GCP session and stores it.
@@ -432,11 +434,12 @@ function gcp_create_instances(cluster::PeerWorkers)
 
     # Criar os Peers.
     instances_peers = compute_instance_insert(cluster, params)
-    for i in 1:count
+
+    for i in 1:cluster.count
         instance = ""
-        if count > 1
+        if cluster.count > 1
             instance = instances_peers["instancesSet"]["item"][i]
-        elseif count == 1
+        elseif cluster.count == 1
             instance = instances_peers["instancesSet"]["item"]
         end
         instance_id = instance["instanceId"]
@@ -588,4 +591,8 @@ function gcp_get_ips(cluster::Cluster)
          ips[node] = gcp_get_ips_instance(id) 
     end
     ips
+end
+
+function gcp_get_instance_dict(cluster::Cluster)
+    return JSON.parse(String(compute(:Instance, :get, defaults_dict[GoogleCloud][:project], cluster.zone, cluster.name)))
 end
