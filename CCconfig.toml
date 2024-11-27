@@ -2,7 +2,7 @@
 [defaults]
 
 user = "ubuntu"
-sshflags = "-i /home/heron/hpc-shelf-credential.pem" 
+sshflags = "" 
 exename = "/home/ubuntu/.juliaup/bin/julia"
 directory = "/home/ubuntu"
 exeflags = "--optimize=3"
@@ -12,14 +12,13 @@ mpiflags = "--map-by node --hostfile /home/ubuntu/hostfile"
 
 [local]
 
-directory = "/home/heron/Dropbox/Copy/ufc_mdcc_hpc/NPBApps.jl"
+directory = "."
 mpiflags = ""
 
 [ec2]
 
 imageid = "ami-0ce455c31c5fec661"
 #placement_group = "automatic"
-#"default_placement_group"
 security_group_id = "sg-039de945285a31f89"
 subnet_id = "subnet-3fca5558"
 

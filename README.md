@@ -25,10 +25,15 @@ _CloudClusters.jl_ assumes that the user has configured their credentials for th
 Creating clusters with _CloudClusters.jl_ requires specifying some configuration parameters. By default, they are specified in a file named _CCconfig.toml_ that is searched in the following locations, in this order:
 * a path pointed by the CLOUD_CLUSTERS_CONFIG environment variable, if it exists;
 * the current path.
-  
+
+Section [Configuration parameters](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters) describes configuration parameters and how they can be overridden in programs.  
+
 Default configuration parameters can be overridden in programs. 
 
-Section [Configuration parameters](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters) describes configuration parameters and how they can be overridden in programs.
+A [_CCconfig.toml_](https://raw.githubusercontent.com/PlatformAwareProgramming/CloudClusters.jl/refs/heads/main/CCconfig.toml) file is provided in the repository's top-level directory. It is configured to create clusters using prebuilt virtual machine images for each supported cloud provider. These images are based on the latest version of Ubuntu and include a Julia installation of a recent stable version with all the packages needed to instantiate the clusters added and precompiled. Users can create customized images, possibly derived from the provided image, using their preferred version of Julia and adding the packages they need. 
+
+> [!NOTE]
+> The version of Julia on the host computer using _CloudClusters.jl_ must be the same version as the image used to deploy the clusters.
 
 ### The _PlatformAware.jl_ package
 
