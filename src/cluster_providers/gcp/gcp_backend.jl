@@ -44,6 +44,8 @@ mutable struct GCPPeerWorkers <: PeerWorkers # Cluster
     count::Int
     instance_type::String
     zone::String
+    project::String
+    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
 #=     instance_type::String
     count::Int
     image_id::String
@@ -90,9 +92,9 @@ end
 """
 -> Dict
 """
-function gcp_get_ips_instance(instance_id::String)
-    public_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
-    private_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
+function gcp_get_ips_instance(cluster::Cluster, name)
+    public_ip = gcp_get_instance_dict(cluster, name)["networkInterfaces"][1]["accessConfigs"][1]["natIP"]
+    private_ip = gcp_get_instance_dict(cluster, name)["networkInterfaces"][1]["networkIP"]
     
     return Dict(:public_ip => public_ip, :private_ip => private_ip)
 end
@@ -433,41 +435,32 @@ function gcp_create_instances(cluster::PeerWorkers)
     params = gcp_create_params(cluster, user_data_base64)
 
     # Criar os Peers.
-    instances_peers = compute_instance_insert(cluster, params)
+    compute_instance_insert(cluster, params)
 
-    for i in 1:cluster.count
-        instance = ""
-        if cluster.count > 1
-            instance = instances_peers["instancesSet"]["item"][i]
-        elseif cluster.count == 1
-            instance = instances_peers["instancesSet"]["item"]
-        end
-        instance_id = instance["instanceId"]
-        cluster_nodes[Symbol("peer$i")] = instance_id
+    for i = 1:cluster.count
+        cluster_nodes[Symbol("peer$i")] = lowercase(cluster.name) * string(i)
     end
 
-    gcp_await_status(cluster_nodes, "running")
-    gcp_await_check(cluster_nodes, "ok")
+    gcp_await_status(cluster, cluster_nodes, "RUNNING")
+    gcp_await_check(cluster, cluster_nodes, "ok")
 
     gcp_set_hostfile(cluster_nodes, internal_key_name)
 
    # gcp_remove_temp_files(internal_key_name)
 
-    cluster_nodes
+    return cluster_nodes
 end
 
 function compute_instance_insert(cluster::Cluster, params)
     for i = 1:cluster.count
-        GCPAPI.compute(:Instance, :insert, defaults_dict[GoogleCloud][:project], cluster.zone; data=params[i])
+        GCPAPI.compute(:Instance, :insert, cluster.project, cluster.zone; data=params[i])
     end
-
-    return GCPAPI.compute(:Instance, :list, defaults_dict[GoogleCloud][:project], cluster.zone)
 end
 
-function gcp_await_status(cluster_nodes, status)
+function gcp_await_status(cluster::Cluster, cluster_nodes, status)
     for nodeid in keys(cluster_nodes)
         print("Waiting for $nodeid to be $status ...")
-        while gcp_get_instance_status(cluster_nodes[nodeid]) != status
+        while gcp_get_instance_status(cluster, cluster_nodes[nodeid]) != status
             print(".")
             sleep(5)
         end
@@ -490,7 +483,7 @@ end
 function gcp_cluster_status(cluster::Cluster, status_list)
     cluster_nodes = cluster.cluster_nodes
     for nodeid in keys(cluster_nodes)
-        !(gcp_get_instance_status(cluster_nodes[nodeid]) in status_list) && return false
+        !(gcp_get_instance_status(cluster, cluster_nodes[nodeid]) in status_list) && return false
     end
     return true
 end
@@ -509,16 +502,11 @@ function gcp_delete_instances(cluster_nodes)
     end
 end
 
-function gcp_get_instance_status(id)
+function gcp_get_instance_status(cluster::Cluster, id)
     try
-        description = Ec2.describe_instances(Dict("InstanceId" => id))    
-        if haskey(description["reservationSet"], "item")
-            description["reservationSet"]["item"]["instancesSet"]["item"]["instanceState"]["name"]
-        else
-            "notfound"
-        end
+        return gcp_get_instance_dict(cluster, id)["status"]
     catch _
-        "notfound"
+        return "notfound"
     end
 end
 
@@ -587,12 +575,15 @@ end
 # PUBLIC
 function gcp_get_ips(cluster::Cluster)
     ips = Dict()
-    for (node, id) in cluster.cluster_nodes
-         ips[node] = gcp_get_ips_instance(id) 
+    
+    for i = 1:cluster.count
+        node_name = cluster.name * string(i)
+        ips[node_name] = gcp_get_ips_instance(cluster, node_name)
     end
-    ips
+
+    return ips
 end
 
-function gcp_get_instance_dict(cluster::Cluster)
-    return JSON.parse(String(GCPAPI.compute(:Instance, :get, defaults_dict[GoogleCloud][:project], cluster.zone, cluster.name)))
+function gcp_get_instance_dict(cluster::Cluster, name)
+    return JSON.parse(String(GCPAPI.compute(:Instance, :get, cluster.project, cluster.zone, name)))
 end

@@ -28,8 +28,15 @@ function deploy_cluster(_::Type{GoogleCloud},
     node_count = get(cluster_features, :node_count, 1)
     source_image = get(cluster_features, :source_image, defaults_dict[GoogleCloud][:source_image]) 
     zone = get(cluster_features, :zone, defaults_dict[GoogleCloud][:zone]) 
+    project = defaults_dict[GoogleCloud][:project]
 
-    cluster = GCPPeerWorkers(string(cluster_handle), source_image, node_count, instance_type, zone)
+    cluster = GCPPeerWorkers(string(cluster_handle), 
+                            source_image, 
+                            node_count, 
+                            instance_type, 
+                            zone, 
+                            project, 
+                            nothing)
 
     gcp_create_cluster(cluster)
 
