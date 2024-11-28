@@ -1,3 +1,4 @@
+# CloudClusters.jl's default configuration
 
 [defaults]
 
@@ -17,9 +18,10 @@ mpiflags = ""
 
 [ec2]
 
-imageid = "ami-0ce455c31c5fec661"
-#placement_group = "automatic"
-security_group_id = "sg-039de945285a31f89"
-subnet_id = "subnet-3fca5558"
+imageid = "ami-0ce455c31c5fec661"  # found at us-east-1 (North Virginia). To use in other regions, copy it.
+
+# placement_group = "pg-XXXXXXXXXXXX" or "automatic"
+# security_group_id = "sg-XXXXXXXXXXXX" or "automatic"
+# subnet_id = "subnet-XXXXXXXXXXXX"
 
 [gcp]

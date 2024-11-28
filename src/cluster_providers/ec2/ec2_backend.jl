@@ -47,7 +47,7 @@ mutable struct EC2PeerWorkers <: PeerWorkers # Cluster
     subnet_id::Union{String, Nothing}
     placement_group::Union{String, Nothing}
     auto_pg::Bool
-    security_group_id::Union{String,Nothing}
+    security_group_id::Union{String, Nothing}
     auto_sg::Bool
     environment::Union{SharedFSInfo, Nothing}
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
@@ -63,7 +63,7 @@ mutable struct EC2PeerWorkersMPI <: PeerWorkersMPI # Cluster
     subnet_id::Union{String, Nothing}
     placement_group::Union{String, Nothing}
     auto_pg::Bool
-    security_group_id::Union{String,Nothing}
+    security_group_id::Union{String, Nothing}
     auto_sg::Bool
     environment::Union{SharedFSInfo, Nothing}
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}

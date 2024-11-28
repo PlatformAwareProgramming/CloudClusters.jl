@@ -61,7 +61,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     auto_sg, security_group_id = security_group_id == "automatic" ? (true, ec2_create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
 
     cluster = ec2_build_clusterobj(cluster_type, string(cluster_handle), instance_type, count, imageid,
-                                subnet_id, placement_group, auto_pg, security_group_id, auto_sg, cluster_features)
+                                   subnet_id, placement_group, auto_pg, security_group_id, auto_sg, cluster_features)
 
     ec2_create_cluster(cluster)
  
