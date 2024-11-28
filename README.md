@@ -1,4 +1,6 @@
 ![CloudClusters.jl](https://raw.githubusercontent.com/PlatformAwareProgramming/CloudClusters.jl/refs/heads/main/docs/src/assets/logo-text.svg)
+[![TagBot](https://github.com/PlatformAwareProgramming/CloudClusters.jl/actions/workflows/TagBot.yml/badge.svg)](https://github.com/PlatformAwareProgramming/CloudClusters.jl/actions/workflows/TagBot.yml)
+[![CompatHelper](https://github.com/PlatformAwareProgramming/CloudClusters.jl/actions/workflows/CompatHelper.yml/badge.svg)](https://github.com/PlatformAwareProgramming/CloudClusters.jl/actions/workflows/CompatHelper.yml)
 
 _A package for creating, using, and managing clusters of virtual machine (VM) instances deployed with IaaS cloud providers._
 
