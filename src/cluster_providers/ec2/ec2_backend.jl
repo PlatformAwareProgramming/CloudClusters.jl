@@ -3,32 +3,6 @@
 For this module to work, you`ll need AWS credentials in the ${HOME}/.aws directory. 
 =# 
 
-#=
-1. Create placement group.
-2. Create EFS Filesystem.
-3. Create EC2 instances and attach them to the EFS.
-=# 
-
-using AWS
-println("Adaptando o código do Módulo AWS.jl...")
-using FilePathsBase
-aws_package_dir = ENV["HOME"] * "/.julia/packages/AWS"
-all_entries = readdir(aws_package_dir)
-subdirs = filter(entry -> isdir(joinpath(aws_package_dir, entry)), all_entries)
-
-for subdir in subdirs
-    ec2_file = joinpath(aws_package_dir, subdir, "src", "services", "ec2.jl")
-    chmod(ec2_file, 0o644)
-    content = read(ec2_file, String)
-    new_content = replace(content, "Dict{String,Any}(\"groupName\" => groupName);" => "Dict{String,Any}(\"GroupName\" => groupName);")
-    new_content = replace(new_content, "\"MaxCount\" => MaxCount, \"MinCount\" => MinCount, \"clientToken\" => string(uuid4())" => 
-                                       "\"MaxCount\" => MaxCount, \"MinCount\" => MinCount, \"ClientToken\" => string(uuid4())")
-    new_content = replace(new_content, "\"clientToken\" => string(uuid4())" =>  "\"ClientToken\" => string(uuid4())")
-    open(ec2_file, "w") do io
-        write(io, new_content)
-    end
-end
-
 using Random
 using AWS: @service
 using Serialization
@@ -113,7 +87,6 @@ function ec2_create_cluster(cluster::Cluster)
 end
 
 
-
 function ec2_get_ips_instance(instance_id::String)
     public_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
     private_ip = Ec2.describe_instances(Dict("InstanceId" => instance_id))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
@@ -150,7 +123,7 @@ end
 
 function ec2_delete_placement_group(name)
     params = Dict("GroupName" => name)
-    Ec2.delete_placement_group(name)
+    delete_placement_group(name)
 end
 
 #=
@@ -194,8 +167,6 @@ end
 #=
 Criação de Instâncias
 =# 
-
-
 
 # Funções auxiliares.
 function ec2_set_up_ssh_connection(cluster_name)  
@@ -382,14 +353,14 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
     # Criando as instâncias
     params_manager, params_workers = ec2_create_params(cluster, user_data_base64)
     # Criar o headnode
-    instance_headnode = Ec2.run_instances(1, 1, params_manager)
+    instance_headnode = run_instances(1, 1, params_manager)
     cluster_nodes[:manager] = instance_headnode["instancesSet"]["item"]["instanceId"]
 
     # Criar os worker nodes.
     params_workers["InstanceType"] = cluster.instance_type_worker
     params_workers["TagSpecification"]["Tag"][2]["Value"] = "worker"
     count = cluster.count
-    instances_workers = Ec2.run_instances(count, count, params_workers)
+    instances_workers = run_instances(count, count, params_workers)
     workers = count
     for i in 1:count
         instance = ""
@@ -435,7 +406,7 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
 
     # Criar os Peers.
     count = cluster.count
-    instances_peers = Ec2.run_instances(count, count, params)
+    instances_peers = run_instances(count, count, params)
     for i in 1:count
         instance = ""
         if count > 1
@@ -641,3 +612,67 @@ function ec2_get_ips(cluster::Cluster)
     end
     ips
 end
+
+
+
+function delete_placement_group(
+    groupName; aws_config::AbstractAWSConfig=global_aws_config()
+)
+    return Ec2.ec2(
+        "DeletePlacementGroup",
+        Dict{String,Any}("GroupName" => groupName);
+        aws_config=aws_config,
+        feature_set=Ec2.SERVICE_FEATURE_SET,
+    )
+end
+function delete_placement_group(
+    groupName,
+    params::AbstractDict{String};
+    aws_config::AbstractAWSConfig=global_aws_config(),
+)
+    return Ec2.ec2(
+        "DeletePlacementGroup",
+        Dict{String,Any}(
+            mergewith(_merge, Dict{String,Any}("GroupName" => groupName), params)
+        );
+        aws_config=aws_config,
+        feature_set= Ec2.SERVICE_FEATURE_SET,
+    )
+end
+
+function run_instances(
+    MaxCount, MinCount; aws_config::AbstractAWSConfig=global_aws_config()
+)
+    return Ec2.ec2(
+        "RunInstances",
+        Dict{String,Any}(
+            "MaxCount" => MaxCount, "MinCount" => MinCount, "ClientToken" => string(Ec2.uuid4())
+        );
+        aws_config=aws_config,
+        feature_set=Ec2.SERVICE_FEATURE_SET,
+    )
+end
+function run_instances(
+    MaxCount,
+    MinCount,
+    params::AbstractDict{String};
+    aws_config::AbstractAWSConfig=global_aws_config(),
+)
+    return Ec2.ec2(
+        "RunInstances",
+        Dict{String,Any}(
+            mergewith(
+                _merge,
+                Dict{String,Any}(
+                    "MaxCount" => MaxCount,
+                    "MinCount" => MinCount,
+                    "ClientToken" => string(Ec2.uuid4()),
+                ),
+                params,
+            ),
+        );
+        aws_config=aws_config,
+        feature_set=Ec2.SERVICE_FEATURE_SET,
+    )
+end
+
