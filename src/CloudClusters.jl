@@ -7,6 +7,7 @@ using Reexport
 using Base.Threads
 using Dates
 using TOML
+using AWS
 
 include("config/configs.jl") 
 include("features/features.jl")
