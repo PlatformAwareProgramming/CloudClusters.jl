@@ -22,7 +22,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [compat]
-AWS = "1.92.0"
+AWS = "1"
 Base64 = "1.10.4"
 Distributed = "1.10.4"
 FilePathsBase = "0.9.21"
