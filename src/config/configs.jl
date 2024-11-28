@@ -1,3 +1,4 @@
+using Downloads
 
 abstract type Localhost <: OnPremises end
 
@@ -17,32 +18,31 @@ function readCCConfig(config_file::String)
             close(io)
             contents
          catch
-            default_location = "/etc/$config_file"
+            # system wide location
             try
-                # defaul system location
+                default_location = "/etc/$config_file"
                 io = open(default_location)
                 contents = read(io,String)
                 close(io)
                 contents
             catch
-                @info "The configuration file ($config_file) was not found."
-     
-     #           dpf_path = @get_scratch!("default_platform_path")
-     #           dpf_url = "https://raw.githubusercontent.com/PlatformAwareProgramming/PlatformAware.jl/manager/src/features/default/Platform.toml"
-     #           dpf_fname =  joinpath(dpf_path, basename(dpf_url))
-     #           try_download(dpf_url, dpf_fname)
-
-     #           read(dpf_fname,String)
+                # NOTHING TO DO
             end
          end
     
     #@info "=====> $ccconfig_toml"
     if isnothing(ccconfig_toml)
-        @error "The configuration file ($config_file) was not found."
-        return nothing
+        @warn "A configuration file ($config_file) was not found. A default $config_file will be downloaded and copied to the current directory."
+        fetch_default_configuration_file(config_file)
+        return readCCConfig(config_file)
+    else
+        return TOML.parse(ccconfig_toml)    
     end
+end
 
-    TOML.parse(ccconfig_toml)    
+function fetch_default_configuration_file(config_file)
+    url = "https://raw.githubusercontent.com/PlatformAwareProgramming/CloudClusters.jl/refs/heads/main/CCconfig.toml"
+    Downloads.download(url, config_file)
 end
 
 function loadDefaults(_::Type{Provider}, ccconfig_dict)
