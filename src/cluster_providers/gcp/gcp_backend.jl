@@ -83,9 +83,7 @@ Creates a compute instances cluster and returns it.
 -> Cluster
 """
 function gcp_create_cluster(cluster::Cluster)
-    cluster.cluster_nodes = gcp_create_instances(cluster)
-    
-    return cluster
+    return gcp_create_instances(cluster)
 end
 
 
@@ -101,13 +99,13 @@ end
 
 # PUBLIC
 function gcp_terminate_cluster(cluster::Cluster)
-    gcp_delete_instances(cluster.cluster_nodes) 
+    gcp_delete_instances(cluster) 
     for instance in cluster.cluster_nodes
-        status = gcp_get_instance_status(instance[2])
+        status = gcp_get_instance_status(cluster, instance[2])
         while status != "terminated"
             println("Waiting for instances to terminate...")
             sleep(5)
-            status = gcp_get_instance_status(instance[2])
+            status = gcp_get_instance_status(cluster, instance[2])
         end
     end
     
@@ -322,10 +320,10 @@ end
 
 
  
-function gcp_set_hostfile(cluster_nodes, internal_key_name)
+function gcp_set_hostfile(cluster::Cluster, internal_key_name)
     # Testando se a conexão SSH está ativa.
-    for instance in keys(cluster_nodes)
-        public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
+    for instance in keys(cluster.cluster_nodes)
+        public_ip = gcp_get_ips_instance(cluster, instance)[:public_ip]
         connection_ok = false
         while !connection_ok
             try
@@ -340,8 +338,8 @@ function gcp_set_hostfile(cluster_nodes, internal_key_name)
     # Criando o arquivo hostfile.
     hostfile_content = "127.0.0.1 localhost\n"
     hostfilefile_content = ""
-    for instance in keys(cluster_nodes)
-        private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
+    for instance in cluster.cluster_nodes
+        private_ip = gcp_get_ips_instance(cluster, instance)[:private_ip]
         hostfile_content *= "$private_ip $instance\n"
         if instance != :master 
            hostfilefile_content *= "$instance\n"
@@ -359,8 +357,8 @@ function gcp_set_hostfile(cluster_nodes, internal_key_name)
     end=#
 
     # Atualiza o hostname e o hostfile.
-    for instance in keys(cluster_nodes)
-        public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
+    for instance in cluster.cluster_nodes
+        public_ip = gcp_get_ips_instance(cluster, instance)[:public_ip]
        # private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
@@ -383,6 +381,7 @@ Cria as instâncias.
 
 
 function gcp_create_instances(cluster::ManagerWorkers)
+    new_cluster = cluster
     cluster_nodes = Dict()
 
     # Configurando a conexão SSH.
@@ -397,9 +396,9 @@ function gcp_create_instances(cluster::ManagerWorkers)
     cluster_nodes[:master] = instance_headnode["instancesSet"]["item"]["instanceId"]
 
     # Criar os worker nodes.
-    params_workers["InstanceType"] = cluster.instance_type_worker
+    params_workers["InstanceType"] = new_cluster.instance_type_worker
     params_workers["TagSpecification"]["Tag"][2]["Value"] = "worker"
-    count = cluster.count
+    count = new_cluster.count
     instances_workers = Ec2.run_instances(count, count, params_workers)
     workers = count
     for i in 1:count
@@ -413,14 +412,15 @@ function gcp_create_instances(cluster::ManagerWorkers)
         cluster_nodes[Symbol("worker$i")] = instance_id
     end
 
-    gcp_await_status(cluster_nodes, "running")
-    gcp_await_check(cluster_nodes, "ok")
+    new_cluster.cluster_nodes = cluster_nodes
 
-    gcp_set_hostfile(cluster_nodes, internal_key_name)
+    gcp_await_status(new_cluster, cluster_nodes, "RUNNING")
 
-    #gcp_remove_temp_files(internal_key_name)
+    gcp_set_hostfile(new_cluster, internal_key_name)
 
-    cluster_nodes
+    gcp_remove_temp_files(internal_key_name)
+
+    return new_cluster
 end
 
 function gcp_create_instances(cluster::PeerWorkers)
@@ -442,9 +442,8 @@ function gcp_create_instances(cluster::PeerWorkers)
     end
 
     gcp_await_status(cluster, cluster_nodes, "RUNNING")
-    gcp_await_check(cluster, cluster_nodes, "ok")
 
-    gcp_set_hostfile(cluster_nodes, internal_key_name)
+    gcp_set_hostfile(cluster, internal_key_name)
 
    # gcp_remove_temp_files(internal_key_name)
 
@@ -461,17 +460,6 @@ function gcp_await_status(cluster::Cluster, cluster_nodes, status)
     for nodeid in keys(cluster_nodes)
         print("Waiting for $nodeid to be $status ...")
         while gcp_get_instance_status(cluster, cluster_nodes[nodeid]) != status
-            print(".")
-            sleep(5)
-        end
-        println("successfull")
-    end
-end
-
-function gcp_await_check(cluster_nodes, status)
-    for nodeid in keys(cluster_nodes)
-        print("Waiting for $nodeid to be $status ...")
-        while gcp_get_instance_check(cluster_nodes[nodeid]) != status
             print(".")
             sleep(5)
         end
@@ -496,9 +484,9 @@ function gcp_cluster_ready(cluster::Cluster; status="ok")
     return true
 end
 
-function gcp_delete_instances(cluster_nodes)
-    for id in values(cluster_nodes)
-        Ec2.terminate_instances(id)
+function gcp_delete_instances(cluster::Cluster)
+    for id in values(cluster.cluster_nodes)
+        GCPAPI.compute(:Instance, :delete, cluster.project, cluster.zone, id)
     end
 end
 

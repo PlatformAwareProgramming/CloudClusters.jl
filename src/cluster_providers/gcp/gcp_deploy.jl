@@ -1,6 +1,10 @@
 
 gcp_cluster_info = Dict()
 
+function get_ips(_::Type{GoogleCloud}, cluster_handle)
+    return gcp_get_ips_instance(gcp_cluster_info[cluster_handle], cluster_handle)
+end
+
 # 1. creates a worker process in the master node
 # 2. from the master node, create worker processes in the compute nodes with MPIClusterManager
 function deploy_cluster(_::Type{GoogleCloud},
@@ -18,7 +22,7 @@ end
 
 # 1. run the script to clusterize the nodes
 # 2. call deploy_cluster to link ...
-function deploy_cluster(_::Type{GoogleCloud}, 
+function deploy_cluster(gcptype::Type{GoogleCloud}, 
                     _::Type{<:PeerWorkers},
                     _::Type{<:CreateMode},
                     cluster_handle,
@@ -37,8 +41,13 @@ function deploy_cluster(_::Type{GoogleCloud},
                             zone, 
                             project, 
                             nothing)
+    try
+        gcp_create_cluster(cluster)
+    catch e
+        terminate_cluster(gcptype, cluster_handle)
 
-    gcp_create_cluster(cluster)
+        throw(e)
+    end
 
     gcp_cluster_info[cluster_handle] = cluster
 
@@ -73,4 +82,4 @@ function terminate_cluster(type::Type{GoogleCloud}, cluster_handle)
     
 end
 
-cluster_isrunning(_::Type{GoogleCloud}, cluster_handle) = gcp_cluster_info[cluster_handle] |> gcp_cluster_isrunning
+#cluster_isrunning(_::Type{GoogleCloud}, cluster_handle) = gcp_cluster_info[cluster_handle] |> gcp_cluster_isrunning
