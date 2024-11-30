@@ -29,14 +29,15 @@ Creating clusters with _CloudClusters.jl_ requires specifying some configuration
 * a path pointed by the CLOUD_CLUSTERS_CONFIG environment variable, if it exists;
 * the current path.
 
-Section [Configuration parameters](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters) describes configuration parameters and how they can be overridden in programs.  
-
-Default configuration parameters can be overridden in programs. 
+Section [Configuration parameters](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters) describes default configuration parameters and how they can be overridden in programs.  
 
 A [_CCconfig.toml_](https://raw.githubusercontent.com/PlatformAwareProgramming/CloudClusters.jl/refs/heads/main/CCconfig.toml) file is provided in the repository's top-level directory. It is configured to create clusters using prebuilt virtual machine images for each supported cloud provider. These images are based on the latest version of Ubuntu and include a Julia installation of a recent stable version with all the packages needed to instantiate the clusters added and precompiled. Users can create customized images, possibly derived from the provided image, using their preferred version of Julia and adding the packages they need. 
 
-> [!NOTE]
+> [!WARNING]
 > The version of Julia on the host computer using _CloudClusters.jl_ must be the same version as the image used to deploy the clusters.
+
+> [!NOTE]
+> The current prebuilt image for EC2 is located at the _us-east-1_ (North Virginia) region. Suppose the user is going to deploy a cluster in another region. In that case, they must create a copy of the image for that region in their account and assign their id to the ```imageid``` parameter of _CCConfig.toml_.
 
 ### The _PlatformAware.jl_ package
 
