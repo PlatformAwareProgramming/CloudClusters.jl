@@ -61,7 +61,7 @@ function loadDefaults(_::Type{Provider}, ccconfig_dict)
     return defaults_dict
 end
 
-_providers = [Provider, Localhost, AmazonEC2, GoogleCloud]
+_providers = [Provider, Localhost]
 
 defaults_dict = Dict()
 

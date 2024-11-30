@@ -8,23 +8,16 @@ using Base.Threads
 using Dates
 using TOML
 using AWS
+using Random
 
 include("config/configs.jl") 
 include("features/features.jl")
 include("utils.jl")
+include("provider.jl")
 include("cluster.jl")
 include("resolve.jl")
 include("deploy.jl")
 include("macros.jl")
-include("cluster_providers/ec2/ec2_configs.jl")
-include("cluster_providers/ec2/ec2_backend.jl")
-include("cluster_providers/ec2/ec2_persist.jl")
-include("cluster_providers/ec2/ec2_resolve.jl")
-include("cluster_providers/ec2/ec2_deploy.jl")
-include("cluster_providers/gcp/gcp_configs.jl")
-#include("cluster_providers/gcp/gcp_backend.jl")
-include("cluster_providers/gcp/gcp_resolve.jl")
-include("cluster_providers/gcp/gcp_deploy.jl")
 include("cluster_providers/local/local_configs.jl")
 include("cluster_providers/local/local_resolve.jl")
 include("cluster_providers/local/local_deploy.jl")
@@ -50,9 +43,13 @@ export cluster_create, @cluster,
        cluster_features
 
 # Cluster types
-export ManagerWorkers, PeerWorkers, PeerWorkersMPI, Localhost
+export Cluster, ManagerWorkers, PeerWorkers, PeerWorkersMPI
 
 # Feature types
 export PlatformAware, select_instances, @select
+
+export Localhost
+
+export DeployMode, LinkMode, ClusterizeMode, CreateMode
 
 end # end CloudCluster

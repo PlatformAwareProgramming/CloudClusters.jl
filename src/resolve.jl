@@ -65,9 +65,21 @@ function call_resolve(features)
         end
     end
 
-    str = resolve(resolve_args...)
+    str = nothing
+    error = false
+    for m in provider_registry    
+        try
+            str = m.resolve(resolve_args...)
+        catch
+            error = true
+        end
+        !error && break
+    end
+
     return str
 end
+
+
 
 #function resolve(provider::Type{<:EC2Cluster}, node_machinetype, node_memory_size, #=node_ecu_count,=# node_vcpus_count, accelerator_count, accelerator_type, accelerator_arch, accelerator, processor, processor_arch, storage_type, storage_size, interconnection_bandwidth)
 #        @warn provider, node_machinetype, node_memory_size, #=node_ecu_count, =# node_vcpus_count, accelerator_count, accelerator_type, accelerator_arch, accelerator, processor, processor_arch, storage_type, storage_size, interconnection_bandwidth
