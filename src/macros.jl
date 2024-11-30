@@ -7,13 +7,6 @@ function readFeatures(features)
     for f in features
         @assert f.head == :call
         @assert f.args[1] == :(=>)
-        #if arg.args[2] == :cluster_type
-        #    cluster_type = arg.args[3]
-        #    push!(common_features, Expr(:call, :(=>), :(:cluster_type), cluster_type) #= :cluster_type => cluster_type=#)
-        #elseif arg.args[2] == :node_provider
-        #    cloud_provider = arg.args[3]
-        #    push!(common_features, Expr(:call, :(=>), :(:node_provider), cloud_provider)   #=:node_provider => cloud_provider=#)
-        #else
         if isa(f.args[2], Expr) 
             @assert f.args[2].head == :.
             which_node = f.args[2].args[1]

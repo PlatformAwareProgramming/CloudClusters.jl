@@ -63,7 +63,6 @@ function cluster_deploy(contract_handle, config_args...)
 
     if !isnothing(pids) 
         cluster_deploy_info[cluster_handle][:pids] = pids
-        @info "pids: $(cluster_deploy_info[cluster_handle][:pids])"
         return cluster_handle
     else
        @warn "error launching processes -- cluster will be terminated"
@@ -200,6 +199,8 @@ function launch_processes_ssh(cluster_features, _::Type{<:ManagerWorkers}, ips)
         ntries += 1
     end
 
+    @info "the entry process of this MW cluster has pid $(first(master_id))"
+
     return master_id
 
 end
@@ -245,6 +246,8 @@ function launch_processes_local(cluster_features, _::Type{<:ManagerWorkers}, ips
         end
         ntries += 1
     end
+
+    @info "the entry process of this MW cluster has pid $master_id"
 
     return master_id
 
@@ -298,6 +301,8 @@ function launch_processes_ssh(cluster_features, _::Type{<:PeerWorkers}, ips)
         ntries += 1
     end
 
+    @info "the worker processes of this PW cluster have pids $peer_ids"
+
     return peer_ids
 
 end
@@ -321,6 +326,8 @@ function launch_processes_local(cluster_features, _::Type{<:PeerWorkers}, ips)
         end
         ntries += 1
     end
+
+    @info "the worker processes of this PW local cluster have pids $peer_ids"
 
     return peer_ids
     
@@ -355,6 +362,8 @@ function launch_processes_mpi(cluster_features, _::Type{<:PeerWorkersMPI}, ips)
         end
         ntries += 1
     end
+
+    @info "the worker processes of this PW-MPI cluster (local) have pids $peer_ids"
 
     return peer_ids
     
@@ -436,7 +445,7 @@ function kill_processes(cluster_handle, _::Type{<:ManagerWorkers}, cluster_featu
         rmprocs(pids)
     end
     empty!(cluster_deploy_info[cluster_handle][:pids])
-    @info "pids $pids removed (manager)"
+    !isempty(pids) && @info "pids $pids removed (manager)"
 end
 
 function kill_processes(cluster_handle, _::Type{<:PeerWorkers}, cluster_features)
@@ -445,7 +454,7 @@ function kill_processes(cluster_handle, _::Type{<:PeerWorkers}, cluster_features
         rmprocs(pids)
         empty!(cluster_deploy_info[cluster_handle][:pids])
     end
-    @info "pids $pids removed (peers)"
+    !isempty(pids) && @info "pids $pids removed (peers)"
 end
 
 

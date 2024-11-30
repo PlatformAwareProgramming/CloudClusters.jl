@@ -7,6 +7,7 @@ function cluster_resolve(contract_handle)
         cluster_type, cluster_features = cluster_contract[contract_handle]
 
         cluster_resolve(cluster_type, cluster_features, contract_handle)
+
     catch e
         println(e)
         return :fail
@@ -16,8 +17,8 @@ end
 
 function cluster_resolve(_::Type{<:ManagerWorkers}, cluster_features, contract_handle)
 
-    !haskey(cluster_features, :manager_features) && @warn ":manager_features not specified"
-    !haskey(cluster_features, :worker_features) && @warn ":worker_features not specified"
+    !haskey(cluster_features, :manager_features) && @warn ":manager_features not explicitly specified"
+    !haskey(cluster_features, :worker_features) && @warn ":worker_features not explicitly specified"
 
     manager_features = Dict{Symbol,Any}(get(cluster_features, :manager_features, cluster_features))
     worker_features = Dict{Symbol,Any}(get(cluster_features, :worker_features, cluster_features))
@@ -36,6 +37,9 @@ function cluster_resolve(_::Type{<:ManagerWorkers}, cluster_features, contract_h
 
     cluster_contract_resolved[contract_handle] = (instance_type_manager, instance_type_worker)
 
+    @info "$instance_type_manager of $node_provider selected for the manager node"
+    @info "$instance_type_worker of $node_provider selected for the worker nodes"
+
     :manager_instance_type => instance_type_manager, :worker_instance_type => instance_type_worker
 end
 
@@ -46,6 +50,8 @@ function cluster_resolve(_::Type{<:PeerWorkers}, cluster_features, contract_hand
     cluster_features[:node_provider] = node_provider
 
     cluster_contract_resolved[contract_handle] = instance_type
+
+    @info "$instance_type of $node_provider selected for the peer nodes"
 
     :instance_type => instance_type
 end
@@ -65,8 +71,7 @@ function call_resolve(features)
         end
     end
 
-    str = resolve(resolve_args...)
-    return str
+    return resolve(resolve_args...)
 end
 
 #function resolve(provider::Type{<:EC2Cluster}, node_machinetype, node_memory_size, #=node_ecu_count,=# node_vcpus_count, accelerator_count, accelerator_type, accelerator_arch, accelerator, processor, processor_arch, storage_type, storage_size, interconnection_bandwidth)

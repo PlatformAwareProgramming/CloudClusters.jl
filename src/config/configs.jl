@@ -30,7 +30,6 @@ function readCCConfig(config_file::String)
             end
          end
     
-    #@info "=====> $ccconfig_toml"
     if isnothing(ccconfig_toml)
         @warn "A configuration file ($config_file) was not found. A default $config_file will be downloaded and copied to the current directory."
         fetch_default_configuration_file(config_file)
@@ -61,18 +60,15 @@ function loadDefaults(_::Type{Provider}, ccconfig_dict)
     return defaults_dict
 end
 
-_providers = [Provider, Localhost, AmazonEC2, GoogleCloud]
+_providers = [(Provider,"defaults"), (Localhost,"local"), (AmazonEC2, "ec2"), (GoogleCloud, "gcp")]
 
 defaults_dict = Dict()
 
 function load!()
     ccconfig_dict = readCCConfig("CCconfig.toml")
-    for provider_type in _providers
-        if !isnothing(ccconfig_dict)
-            defaults_dict[provider_type] = loadDefaults(provider_type, ccconfig_dict) 
-        else
-            @error "Default configuration of $provider_type is empty"
-        end
+    for (provider_type, provider_key) in _providers
+        isempty(ccconfig_dict[provider_key]) && @warn "Default configuration of $provider_type ($provider_key) is empty"
+        defaults_dict[provider_type] = loadDefaults(provider_type, ccconfig_dict) 
     end
 end
 
