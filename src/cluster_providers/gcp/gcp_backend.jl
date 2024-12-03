@@ -9,7 +9,7 @@ using JSON
 import GoogleCloud as GCPAPI
 
 # Creates a GCP session and stores it.
-gcp_session = GCPAPI.GoogleSession("/home/.gcp/credentials.json", ["cloud-platform"])
+gcp_session = GCPAPI.GoogleSession(joinpath(ENV["HOME"], ".gcp", "credentials.json"), ["cloud-platform"])
 GCPAPI.set_session!(GCPAPI.compute, gcp_session)
 
 
@@ -281,7 +281,7 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
                 "type" => "PERSISTENT"
             )],
             "zone" => cluster.zone,
-            "machineType" => "zones/$(cluster.zone)/machineTypes/e2-standard-2",
+            "machineType" => "zones/$(cluster.zone)/machineTypes/$(cluster.instance_type)",
             "name" => lowercase(cluster.name) * string(i),
             "networkInterfaces" => [Dict(
                 "accessConfigs" => [Dict(
@@ -322,7 +322,8 @@ end
  
 function gcp_set_hostfile(cluster::Cluster, internal_key_name)
     # Testando se a conexão SSH está ativa.
-    for instance in keys(cluster.cluster_nodes)
+    for i = 1:cluster.count
+        instance = lowercase(cluster.name) * string(i)
         public_ip = gcp_get_ips_instance(cluster, instance)[:public_ip]
         connection_ok = false
         while !connection_ok
@@ -424,30 +425,33 @@ function gcp_create_instances(cluster::ManagerWorkers)
 end
 
 function gcp_create_instances(cluster::PeerWorkers)
+    new_cluster = cluster
     cluster_nodes = Dict()
 
     # Configurando a conexão SSH.
-    internal_key_name, user_data = gcp_set_up_ssh_connection(cluster.name)
+    internal_key_name, user_data = gcp_set_up_ssh_connection(new_cluster.name)
 
     user_data_base64 = base64encode(user_data)
 
     # Criando as instâncias
-    params = gcp_create_params(cluster, user_data_base64)
+    params = gcp_create_params(new_cluster, user_data_base64)
 
     # Criar os Peers.
-    compute_instance_insert(cluster, params)
+    compute_instance_insert(new_cluster, params)
 
-    for i = 1:cluster.count
-        cluster_nodes[Symbol("peer$i")] = lowercase(cluster.name) * string(i)
+    for i = 1:new_cluster.count
+        cluster_nodes[Symbol("peer$i")] = lowercase(new_cluster.name) * string(i)
     end
 
-    gcp_await_status(cluster, cluster_nodes, "RUNNING")
+    new_cluster.cluster_nodes = cluster_nodes
 
-    gcp_set_hostfile(cluster, internal_key_name)
+    gcp_await_status(new_cluster, cluster_nodes, "RUNNING")
+
+    gcp_set_hostfile(new_cluster, internal_key_name)
 
    # gcp_remove_temp_files(internal_key_name)
 
-    return cluster_nodes
+    return new_cluster
 end
 
 function compute_instance_insert(cluster::Cluster, params)
@@ -535,7 +539,7 @@ gcp_can_resume(cluster::Cluster) = gcp_cluster_status(cluster, ["stopped"])
 # PUBLIC
 function gcp_resume_cluster(cluster::Cluster)
     gcp_start_instances(cluster)
-    gcp_await_status(cluster.cluster_nodes, "running")
+    gcp_await_status(cluster, cluster.cluster_nodes, "RUNNING")
     gcp_await_check(cluster.cluster_nodes, "ok")
     for instance in keys(cluster.cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster.cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
@@ -545,7 +549,7 @@ end
 
 
 # Check if the cluster instances are running or interrupted.
-gcp_cluster_isrunning(cluster::Cluster) = gcp_cluster_status(cluster, ["running"]) && gcp_cluster_ready(cluster) 
+gcp_cluster_isrunning(cluster::Cluster) = gcp_cluster_status(cluster, ["RUNNING"]) && gcp_cluster_ready(cluster) 
 gcp_cluster_isstopped(cluster::Cluster) = gcp_cluster_status(cluster, ["stopped"])
 
 function gcp_stop_instances(cluster::Cluster)
