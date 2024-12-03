@@ -291,7 +291,7 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
                 "network" => "https://www.googleapis.com/compute/v1/projects/cloudclusters/global/networks/default"
             )],
             "metadata" => 
-                "items" => Dict(
+                "items" => Dict( # add ssh-keys here
                     "key" => "startup-script",
                     "value" => user_data_base64
             )
@@ -331,7 +331,7 @@ function gcp_set_hostfile(cluster::Cluster, internal_key_name)
                 connect(public_ip, 22)
                 connection_ok = true
             catch e
-                println("Waiting for $instance to be accessible...")
+                println("Waiting for peer$i to be accessible...")
             end
         end
     end
@@ -339,7 +339,8 @@ function gcp_set_hostfile(cluster::Cluster, internal_key_name)
     # Criando o arquivo hostfile.
     hostfile_content = "127.0.0.1 localhost\n"
     hostfilefile_content = ""
-    for instance in cluster.cluster_nodes
+    for i = 1:cluster.count
+        instance = lowercase(cluster.name) * string(i)
         private_ip = gcp_get_ips_instance(cluster, instance)[:private_ip]
         hostfile_content *= "$private_ip $instance\n"
         if instance != :master 
@@ -358,7 +359,8 @@ function gcp_set_hostfile(cluster::Cluster, internal_key_name)
     end=#
 
     # Atualiza o hostname e o hostfile.
-    for instance in cluster.cluster_nodes
+    for i = 1:cluster.count
+        instance = lowercase(cluster.name) * string(i)
         public_ip = gcp_get_ips_instance(cluster, instance)[:public_ip]
        # private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
@@ -437,7 +439,7 @@ function gcp_create_instances(cluster::PeerWorkers)
     params = gcp_create_params(new_cluster, user_data_base64)
 
     # Criar os Peers.
-    compute_instance_insert(new_cluster, params)
+    gcp_compute_instance_insert(new_cluster, params)
 
     for i = 1:new_cluster.count
         cluster_nodes[Symbol("peer$i")] = lowercase(new_cluster.name) * string(i)
@@ -454,7 +456,7 @@ function gcp_create_instances(cluster::PeerWorkers)
     return new_cluster
 end
 
-function compute_instance_insert(cluster::Cluster, params)
+function gcp_compute_instance_insert(cluster::Cluster, params)
     for i = 1:cluster.count
         GCPAPI.compute(:Instance, :insert, cluster.project, cluster.zone; data=params[i])
     end
@@ -578,4 +580,9 @@ end
 
 function gcp_get_instance_dict(cluster::Cluster, name)
     return JSON.parse(String(GCPAPI.compute(:Instance, :get, cluster.project, cluster.zone, name)))
+end
+
+function gcp_allow_ssh()
+    #POST https://compute.googleapis.com/compute/beta/projects/cloudclusters/global/firewalls
+#{"allowed":[{"ports":["22"]}],"direction":"INGRESS","kind":"compute#firewall","name":"allow-ssh","network":"projects/cloudclusters/global/networks/default","priority":1000,"selfLink":"projects/cloudclusters/global/firewalls/allow-ssh","sourceRanges":["0.0.0.0/0"]}
 end
