@@ -13,9 +13,7 @@ _A package for creating, using, and managing clusters of virtual machine (VM) in
 
 _CloudClusters.jl_ targets Julia programming language users who need on-demand access to cutting-edge computing resources that IaaS cloud providers provide to meet high-performance computing (HPC) application requirements.
 
-   
 ## Pre-requisites
-
 
 ### Cloud providers' credentials
 
@@ -71,13 +69,14 @@ First, let's try a simple scenario where a user creates a cluster comprising fou
 
 ```julia
 using CloudClusters
-using PlatformAware
 
-my_first_cluster_contract = @cluster  node_count => 4  node_machinetype => EC2Type_T3_xLarge
+my_first_cluster_contract = @cluster  node_count => 4  node_machinetype => PlatformAware.EC2Type_T3_xLarge
 
 ```
+```EC2Type_T3_xLarge``` is a Julia type from the _PlatformAware.jl_ package that represents the ___t3.xlarge___ of EC2. _PlatformAware.jl_ offers a hierarchy of types representing instance types of supported providers (e.g., ```MachineType``` → ```EC2Type``` → ```EC2Type_T3``` → ```EC2Type_T3_xLarge```). 
+For example, the user may list all the supported EC2 instance types by executing ```subtypes(PlatformAware.EC2Type)``` in the REPL, or ```subtypes(PlatformAware.EC2Type_T3)``` if the user intends to list only ___t3___ instance types.
 
-Using __@cluster__ is not sufficient to instantiate the cluster. It creates a _cluster contract_ and returns a handle for it. In the example, the _contract handle_ is stored in the _my_first_cluster_contract_ variable, from which the user can create one or more clusters later. 
+__@cluster__ does not instantiate a cluster yet. It creates a _cluster contract_ and returns a handle for it. In the example, the _contract handle_ is stored in the _my_first_cluster_contract_ variable, from which the user can create one or more clusters later. 
 
 > [!NOTE]
 > In _CloudClusters.jl_, a handle is a symbol comprising 15 randomly calculated lower and upper case alphabetic characters (e.g.,```:FXqElAnSeTEpQAm``` ). As symbols, they are printable and may be used directly to refer to a cluster contract.
