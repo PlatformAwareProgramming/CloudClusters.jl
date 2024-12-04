@@ -58,9 +58,6 @@ function cluster_deploy(contract_handle, config_args...)
     try
         pids = cluster_deploy(cluster_type, cluster_handle, cluster_features, instance_type)
     catch e
-        @info isa(e, RemoteException)
-        @info e.captured.ex
-        @info e.captured.ex.msg 
         if isa(e, RemoteException) && isa(e.captured.ex, ErrorException) && e.captured.ex.msg == "Only process 1 can add and remove workers"
             @error "MW clusters are not supported."
             @info "To support MW clusters, the extended version of Distributed.jl must be installed in the cluster's entry node. See the README or documentation."

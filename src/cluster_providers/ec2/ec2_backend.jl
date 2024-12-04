@@ -173,6 +173,10 @@ function ec2_set_up_ssh_connection(cluster_name)
 
     internal_key_name = cluster_name
 
+    if !isdir(joinpath(homedir(),".ssh"))
+        mkdir(joinpath(homedir(),".ssh"))
+    end
+
     keypath = joinpath(homedir(), ".ssh", "$internal_key_name.key")
     pubpath = joinpath(homedir(), ".ssh", "$internal_key_name.key.pub")
                       
