@@ -58,18 +58,25 @@ function cluster_deploy(contract_handle, config_args...)
     try
         pids = cluster_deploy(cluster_type, cluster_handle, cluster_features, instance_type)
     catch e
-        @warn "some error deploying cluster $cluster_handle ($e)"
+        @info isa(e, RemoteException)
+        @info e.captured.ex
+        @info e.captured.ex.msg 
+        if isa(e, RemoteException) && isa(e.captured.ex, ErrorException) && e.captured.ex.msg == "Only process 1 can add and remove workers"
+            @error "MW clusters are not supported."
+            @info "To support MW clusters, the extended version of Distributed.jl must be installed in the cluster's entry node. See the README or documentation."
+            @warn "the cluster will be terminated"
+            cluster_terminate(cluster_handle)
+            return :unsupported_mwcluster
+        else
+            @error "Some error deploying cluster $cluster_handle ($e)"
+            @warn "the cluster will be terminated"
+            cluster_terminate(cluster_handle)
+            return nothing
+        end
     end
 
-    if !isnothing(pids) 
-        cluster_deploy_info[cluster_handle][:pids] = pids
-        return cluster_handle
-    else
-       @warn "error launching processes -- cluster will be terminated"
-       cluster_terminate(cluster_handle)
-       @error "deployment failed due to an unrecoverable error in launching processes"
-       return nothing
-    end
+    cluster_deploy_info[cluster_handle][:pids] = pids
+    return cluster_handle
 
 end
 
@@ -377,8 +384,11 @@ function cluster_interrupt(cluster_handle)
         node_provider = cluster_features[:node_provider]
         !can_interrupt(node_provider, cluster_handle) && error("cluster $cluster_handle cannot be interrupted") 
         cluster_type = cluster_features[:cluster_type]
-        kill_processes(cluster_handle, cluster_type, cluster_features)
-        interrupt_cluster(node_provider, cluster_handle)
+        try
+            kill_processes(cluster_handle, cluster_type, cluster_features)
+        finally
+            interrupt_cluster(node_provider, cluster_handle)
+        end
         #@info "the cluster $cluster_handle has been interrupted"
     catch e
         println(e)
@@ -424,10 +434,14 @@ function cluster_terminate(cluster_handle)
         check_cluster_handle(cluster_handle)
         cluster_features = cluster_deploy_info[cluster_handle][:features]
         node_provider = cluster_features[:node_provider]
-        cluster_isrunning(node_provider, cluster_handle) && kill_processes(cluster_handle, cluster_features[:cluster_type], cluster_features)
-        terminate_cluster(node_provider, cluster_handle)
-        terminated_cluster[cluster_handle] = cluster_deploy_info[cluster_handle]
-        delete!(cluster_deploy_info, cluster_handle)
+        try
+            cluster_isrunning(node_provider, cluster_handle) && kill_processes(cluster_handle, cluster_features[:cluster_type], cluster_features)
+            sleep(1)
+        finally
+            terminate_cluster(node_provider, cluster_handle)
+            terminated_cluster[cluster_handle] = cluster_deploy_info[cluster_handle]
+            delete!(cluster_deploy_info, cluster_handle)
+        end
         #@info "the cluster $cluster_handle has been terminated"
     catch e
         println(e)
@@ -440,7 +454,7 @@ function kill_processes(cluster_handle, _::Type{<:ManagerWorkers}, cluster_featu
     pids = cluster_deploy_info[cluster_handle][:pids]
     if !isempty(pids) 
         wids = remotecall_fetch(workers, pids[1], role=:master)
-        remotecall_fetch(rmprocs, pids[1], wids)
+        !in(1, wids) && remotecall_fetch(rmprocs, pids[1], wids)
         #@fetchfrom pids[1] rmprocs(workers(role=:master))
         rmprocs(pids)
     end
@@ -465,11 +479,13 @@ function cluster_restart(cluster_handle::Symbol)
         cluster_provider = cluster_features[:node_provider]
         !cluster_isrunning(cluster_provider, cluster_handle) && error("cluster is not running")
         cluster_type = cluster_features[:cluster_type]
-        kill_processes(cluster_handle, cluster_type, cluster_features)
-        ips = get_ips(cluster_provider, cluster_handle) 
-
-        pids = launch_processes(cluster_provider, cluster_type, cluster_handle, ips)
-        cluster_deploy_info[cluster_handle][:pids] = pids
+        try
+           kill_processes(cluster_handle, cluster_type, cluster_features)
+        finally        
+            ips = get_ips(cluster_provider, cluster_handle) 
+            pids = launch_processes(cluster_provider, cluster_type, cluster_handle, ips)
+            cluster_deploy_info[cluster_handle][:pids] = pids
+        end
     catch e
         println(e)
         return :fail

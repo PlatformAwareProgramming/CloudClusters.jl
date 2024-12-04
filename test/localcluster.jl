@@ -41,19 +41,32 @@ cluster_nodes(cluster_instance_1) |> length == np
 
 # deploy cluster and test node processes
 cluster_instance_2 = @deploy cluster_contract_2
+if cluster_instance_2 == :unsupported_mwcluster
+   mwcluster_support = false 
+   cluster_instance_2 = @deploy cluster_contract_1
+else
+   mwcluster_support = true
+end
+
 @test !isnothing(cluster_instance_2)
 @test isa(cluster_instance_2, Symbol)
 cluster_nodes(cluster_instance_2) |> length == 1
-pid_manager = @nodes(cluster_instance_2) |> first
-nw = @fetchfrom pid_manager workers(role=:master)
-@test length(nw) == np
+
+if mwcluster_support
+    pid_manager = @nodes(cluster_instance_2) |> first
+    nw = @fetchfrom pid_manager workers(role=:master)
+    @test length(nw) == np
+end
 
 # check cluster nodes after restarting
 @test @restart(cluster_instance_2) == :success
-cluster_nodes(cluster_instance_2) |> length == 1
-pid_manager = @nodes(cluster_instance_2) |> first
-nw = @fetchfrom pid_manager workers(role=:master)
-@test length(nw) == np
+
+if mwcluster_support
+    cluster_nodes(cluster_instance_2) |> length == 1
+    pid_manager = @nodes(cluster_instance_2) |> first
+    nw = @fetchfrom pid_manager workers(role=:master)
+    @test length(nw) == np
+end
 
 # interrrupt fails for local clusters
 @test @interrupt(cluster_instance_1, cluster_instance_2) |> r -> all(map(x -> x == :fail, r))
