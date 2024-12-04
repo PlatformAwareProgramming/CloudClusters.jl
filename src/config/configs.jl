@@ -4,10 +4,10 @@ abstract type Localhost <: OnPremises end
 
 function readCCConfig(config_file::String)
 
-    # read the platform description file (default to the current directory)
+    # read the platform description file (default to the home directory)
     configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
 
-    filename = string(configpath, "/$config_file")
+    filename = joinpath(configpath, config_file)
 
     @info "reading configurations from $filename"
 
@@ -20,7 +20,7 @@ function readCCConfig(config_file::String)
          catch
             # system wide location
             try
-                default_location = "/etc/$config_file"
+                default_location = joinpath(homedir(), config_file)
                 io = open(default_location)
                 contents = read(io,String)
                 close(io)
@@ -31,9 +31,10 @@ function readCCConfig(config_file::String)
          end
     
     if isnothing(ccconfig_toml)
-        @warn "A configuration file ($config_file) was not found. A default $config_file will be downloaded and copied to the current directory."
-        fetch_default_configuration_file(config_file)
-        return readCCConfig(config_file)
+        @warn "A configuration file ($config_file) was not found. A default $config_file will be downloaded and copied to the home directory."
+        config_file_path = joinpath(homedir(), config_file)
+        fetch_default_configuration_file(config_file_path)
+        return readCCConfig(config_file_path)
     else
         return TOML.parse(ccconfig_toml)    
     end
