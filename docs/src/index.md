@@ -13,9 +13,7 @@ _A package for creating, using, and managing clusters of virtual machine (VM) in
 
 _CloudClusters.jl_ targets Julia programming language users who need on-demand access to cutting-edge computing resources that IaaS cloud providers provide to meet high-performance computing (HPC) application requirements.
 
-   
 ## Pre-requisites
-
 
 ### Cloud providers' credentials
 
@@ -27,11 +25,12 @@ _CloudClusters.jl_ assumes that the user has configured their credentials for th
 
 Creating clusters with _CloudClusters.jl_ requires specifying some configuration parameters. By default, they are specified in a file named _CCconfig.toml_ that is searched in the following locations, in this order:
 * a path pointed by the CLOUD_CLUSTERS_CONFIG environment variable, if it exists;
-* the current path.
+* the current path;
+* the home path.
 
 Section [Configuration parameters](https://github.com/PlatformAwareProgramming/CloudClusters.jl#configuration-parameters) describes default configuration parameters and how they can be overridden in programs.  
 
-A [_CCconfig.toml_](https://raw.githubusercontent.com/PlatformAwareProgramming/CloudClusters.jl/refs/heads/main/CCconfig.toml) file is provided in the repository's top-level directory. It is configured to create clusters using prebuilt virtual machine images for each supported cloud provider. These images are based on the latest version of Ubuntu and include a Julia installation of a recent stable version with all the packages needed to instantiate the clusters added and precompiled. Users can create customized images, possibly derived from the provided image, using their preferred version of Julia and adding the packages they need. 
+A [_CCconfig.toml_](https://raw.githubusercontent.com/PlatformAwareProgramming/CloudClusters.jl/refs/heads/main/CCconfig.toml) file is provided in the repository's top-level directory. It is downloaded to the current directory if a _CCconfig.toml_ file is not found. It is configured to create clusters using prebuilt virtual machine images for each supported cloud provider. These images are based on the latest version of Ubuntu and include a Julia installation of a recent stable version with all the packages needed to instantiate the clusters added and precompiled. Users can create customized images, possibly derived from the provided image, using their preferred version of Julia and adding the packages they need. 
 
 > [!WARNING]
 > The version of Julia on the host computer using _CloudClusters.jl_ must be the same version as the image used to deploy the clusters.
@@ -71,13 +70,14 @@ First, let's try a simple scenario where a user creates a cluster comprising fou
 
 ```julia
 using CloudClusters
-using PlatformAware
 
-my_first_cluster_contract = @cluster  node_count => 4  node_machinetype => EC2Type_T3_xLarge
+my_first_cluster_contract = @cluster  node_count => 4  node_machinetype => PlatformAware.EC2Type_T3_xLarge
 
 ```
+```EC2Type_T3_xLarge``` is a Julia type from the _PlatformAware.jl_ package that represents the ___t3.xlarge___ instance type (and size) of EC2. _PlatformAware.jl_ offers a hierarchy of types representing instance types of supported providers (e.g., ```MachineType``` → ```EC2Type``` → ```EC2Type_T3``` → ```EC2Type_T3_xLarge```). 
+For example, the user may list all the supported EC2 instance types by executing ```subtypes(PlatformAware.EC2Type)``` in the REPL, or ```subtypes(PlatformAware.EC2Type_T3)``` if the user intends to list the available instance sizes for the ___t3___ instance type.
 
-Using __@cluster__ is not sufficient to instantiate the cluster. It creates a _cluster contract_ and returns a handle for it. In the example, the _contract handle_ is stored in the _my_first_cluster_contract_ variable, from which the user can create one or more clusters later. 
+__@cluster__ does not instantiate a cluster yet. It creates a _cluster contract_ and returns a handle for it. In the example, the _contract handle_ is stored in the _my_first_cluster_contract_ variable, from which the user can create one or more clusters later. 
 
 > [!NOTE]
 > In _CloudClusters.jl_, a handle is a symbol comprising 15 randomly calculated lower and upper case alphabetic characters (e.g.,```:FXqElAnSeTEpQAm``` ). As symbols, they are printable and may be used directly to refer to a cluster contract.
