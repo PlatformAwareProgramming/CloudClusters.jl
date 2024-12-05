@@ -266,6 +266,8 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
         "UserData" => user_data_base64,
     ) =#
 
+    public_key = base64encode(read("/tmp/$(cluster.name).pub", String))
+
     params = Vector{Dict}()
     
     for i = 1:cluster.count
@@ -291,10 +293,14 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
                 "network" => "https://www.googleapis.com/compute/v1/projects/cloudclusters/global/networks/default"
             )],
             "metadata" => 
-                "items" => Dict( # add ssh-keys here
+                "items" => [Dict(
                     "key" => "startup-script",
                     "value" => user_data_base64
-            )
+                ), 
+                Dict(
+                    "key" => "ssh-keys",
+                    "value" => public_key
+                )]
         ))
     end
 
