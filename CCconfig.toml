@@ -18,7 +18,7 @@ mpiflags = ""
 
 [ec2]
 
-imageid = "ami-0ce455c31c5fec661"  # found at us-east-1 (North Virginia). To use in other regions, copy it.
+imageid = "ami-09121cfdb459a0804"  # found at us-east-1 (North Virginia). To use in other regions, copy it.
 
 # placement_group = "pg-XXXXXXXXXXXX" or "automatic"
 # security_group_id = "sg-XXXXXXXXXXXX" or "automatic"

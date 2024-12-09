@@ -173,12 +173,12 @@ function ec2_set_up_ssh_connection(cluster_name)
 
     internal_key_name = cluster_name
 
-    if !isdir(joinpath(homedir(),".ssh"))
-        mkdir(joinpath(homedir(),".ssh"))
-    end
+    ssh_path = joinpath(homedir(), ".ssh")
 
-    keypath = joinpath(homedir(), ".ssh", "$internal_key_name.key")
-    pubpath = joinpath(homedir(), ".ssh", "$internal_key_name.key.pub")
+    !isdir(ssh_path) && mkdir(ssh_path)
+
+    keypath = joinpath(ssh_path, "$internal_key_name.key")
+    pubpath = joinpath(ssh_path, "$internal_key_name.key.pub")
                       
    # Criar chave interna pública e privada do SSH.
    # chars = ['a':'z'; 'A':'Z'; '0':'9']
@@ -276,10 +276,11 @@ function ec2_create_params(cluster::PeerWorkers, user_data_base64)
 end
 
 function ec2_remove_temp_files(internal_key_name)
-    keypath = joinpath(homedir(), ".ssh", "$internal_key_name.key")
-    pubpath = joinpath(homedir(), ".ssh", "$internal_key_name.key.pub")
-    run(`rm $keypath`)
-    run(`rm $pubpath`)
+    ssh_path = joinpath(homedir(), ".ssh")
+    keypath = joinpath(ssh_path, "$internal_key_name.key")
+    pubpath = joinpath(ssh_path, "$internal_key_name.key.pub")
+    rm(keypath)
+    rm(pubpath)
 end
 
 
@@ -310,7 +311,8 @@ function ec2_set_hostfile(cluster_nodes, internal_key_name)
         end
     end
 
-    keypath = joinpath(homedir(), ".ssh", "$internal_key_name.key")
+    ssh_path = joinpath(homedir(), ".ssh")
+    keypath = joinpath(ssh_path, "$internal_key_name.key")
 
     # Atualiza o hostname e o hostfile.
     for instance in keys(cluster_nodes)
@@ -437,7 +439,7 @@ function ec2_await_status(cluster_nodes, status)
         print("Waiting for $nodeid to be $status ...")
         while ec2_get_instance_status(cluster_nodes[nodeid]) != status
             print(".")
-            sleep(5)
+            sleep(2)
         end
         println("successfull")
     end
@@ -448,7 +450,7 @@ function ec2_await_check(cluster_nodes, status)
         print("Waiting for $nodeid to be $status ...")
         while ec2_get_instance_check(cluster_nodes[nodeid]) != status
             print(".")
-            sleep(5)
+            sleep(2)
         end
         println("successfull")
     end
@@ -528,7 +530,7 @@ function ec2_create_mount_point(file_system_id, subnet_id, security_group_id)
     status = Efs.describe_file_systems(Dict("FileSystemId" => file_system_id))["FileSystems"][1]["LifeCycleState"]
     while status != "available"
         println("Waiting for File System to be available...")
-        sleep(5)
+        sleep(2)
         status = Efs.describe_file_systems(Dict("FileSystemId" => file_system_id))["FileSystems"][1]["LifeCycleState"]
     end
     println("Creating Mount Target...")
@@ -537,7 +539,7 @@ function ec2_create_mount_point(file_system_id, subnet_id, security_group_id)
     status = Efs.describe_mount_targets(Dict("MountTargetId" => mount_target_id))["MountTargets"][1]["LifeCycleState"]
     while status != "available"
         println("Waiting for mount target to be available...")
-        sleep(5)
+        sleep(2)
         status = Efs.describe_mount_targets(Dict("MountTargetId" => mount_target_id))["MountTargets"][1]["LifeCycleState"]
     end
     mount_target_id
@@ -555,7 +557,7 @@ function ec2_delete_efs(file_system_id)
     end
     while length(Efs.describe_mount_targets(Dict("FileSystemId" => file_system_id))["MountTargets"]) != 0
         println("Waiting for mount targets to be deleted...")
-        sleep(5)
+        sleep(2)
     end
     Efs.delete_file_system(file_system_id)
 end
@@ -580,7 +582,8 @@ ec2_can_resume(cluster::Cluster) = ec2_cluster_status(cluster, ["stopped"])
 # If some instance is not in "interrupted" or "running" state, raise an exception.
 # PUBLIC
 function ec2_resume_cluster(cluster::Cluster)
-    keypath = joinpath(homedir(), ".ssh", "$(cluster.name).key")
+    ssh_path = joinpath(homedir(), ".ssh")
+    keypath = joinpath(ssh_path, "$(cluster.name).key")
 
     ec2_start_instances(cluster)
     ec2_await_status(cluster.cluster_nodes, "running")

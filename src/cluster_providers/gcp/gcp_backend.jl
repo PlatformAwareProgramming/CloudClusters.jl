@@ -81,7 +81,7 @@ function gcp_terminate_cluster(cluster::Cluster)
         status = gcp_get_instance_status(instance[2])
         while status != "terminated"
             println("Waiting for instances to terminate...")
-            sleep(5)
+            sleep(2)
             status = gcp_get_instance_status(instance[2])
         end
     end
@@ -405,7 +405,7 @@ function gcp_await_status(cluster_nodes, status)
         print("Waiting for $nodeid to be $status ...")
         while gcp_get_instance_status(cluster_nodes[nodeid]) != status
             print(".")
-            sleep(5)
+            sleep(2)
         end
         println("successfull")
     end
@@ -416,7 +416,7 @@ function gcp_await_check(cluster_nodes, status)
         print("Waiting for $nodeid to be $status ...")
         while gcp_get_instance_check(cluster_nodes[nodeid]) != status
             print(".")
-            sleep(5)
+            sleep(2)
         end
         println("successfull")
     end

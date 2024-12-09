@@ -383,6 +383,7 @@ function cluster_interrupt(cluster_handle)
         cluster_type = cluster_features[:cluster_type]
         try
             kill_processes(cluster_handle, cluster_type, cluster_features)
+            sleep(1)
         finally
             interrupt_cluster(node_provider, cluster_handle)
         end
