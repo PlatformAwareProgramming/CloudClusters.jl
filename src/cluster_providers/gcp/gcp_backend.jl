@@ -189,7 +189,8 @@ function gcp_set_up_ssh_connection(cluster_name)
    # chars = ['a':'z'; 'A':'Z'; '0':'9']
    # random_suffix = join(chars[Random.rand(1:length(chars), 5)])
    internal_key_name = cluster_name
-   run(`ssh-keygen -f /tmp/$internal_key_name -N ""`)
+   run(`ssh-keygen -t rsa -b 2048 -f /tmp/$internal_key_name -C cloudclusters -N ""`)
+   run(`chmod 400 /tmp/$internal_key_name`)
    private_key = base64encode(read("/tmp/$internal_key_name", String))
    public_key = base64encode(read("/tmp/$internal_key_name.pub", String))
   
@@ -266,7 +267,7 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
         "UserData" => user_data_base64,
     ) =#
 
-    public_key = base64encode(read("/tmp/$(cluster.name).pub", String))
+    public_key = read("/tmp/$(cluster.name).pub", String)
 
     params = Vector{Dict}()
     
@@ -299,7 +300,7 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
                 ), 
                 Dict(
                     "key" => "ssh-keys",
-                    "value" => public_key
+                    "value" => "cloudclusters : $public_key"
                 )]
         ))
     end
@@ -369,14 +370,14 @@ function gcp_set_hostfile(cluster::Cluster, internal_key_name)
         instance = lowercase(cluster.name) * string(i)
         public_ip = gcp_get_ips_instance(cluster, instance)[:public_ip]
        # private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo hostnamectl set-hostname $instance"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
 #        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown ubuntu:ubuntu /etc/hosts"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "cat hosts.tmp > /etc/hosts"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown root:root /etc/hosts"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "rm hosts.tmp"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo chown ubuntu:ubuntu /etc/hosts"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "cat hosts.tmp > /etc/hosts"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo chown root:root /etc/hosts"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "rm hosts.tmp"`)
     end
 
     #wait(h)
