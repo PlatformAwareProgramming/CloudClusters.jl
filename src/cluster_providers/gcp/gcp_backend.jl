@@ -269,6 +269,8 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
 
     public_key = read("/tmp/$(cluster.name).pub", String)
 
+    gcp_add_to_common_metadata(cluster, public_key)
+
     params = Vector{Dict}()
     
     for i = 1:cluster.count
@@ -589,7 +591,27 @@ function gcp_get_instance_dict(cluster::Cluster, name)
     return JSON.parse(String(GCPAPI.compute(:Instance, :get, cluster.project, cluster.zone, name)))
 end
 
-function gcp_allow_ssh()
+function gcp_add_to_common_metadata(cluster::Cluster, public_key)
+    project_dict = JSON.parse(String(GCPAPI.compute(:Project, :get, cluster.project)))
+
+    fingerprint = project_dict["commonInstanceMetadata"]["fingerprint"]
+    
+    public_key = replace(public_key, r"[\x00-\x1F\x7F]" => "")
+
+    metadata_data = JSON.parse("{
+                                \"items\": [
+                                {
+                                \"key\": \"ssh-keys\",
+                                \"value\": \"cloudclusters : $public_key\"
+                                }
+                                ],
+                                \"fingerprint\": \"$fingerprint\"
+                                }")
+
+    GCPAPI.compute(:Project, :setCommonInstanceMetadata, cluster.project; data=metadata_data)
+end
+
+function gcp_allow_ssh() # TODO
     #POST https://compute.googleapis.com/compute/beta/projects/cloudclusters/global/firewalls
 #{"allowed":[{"ports":["22"]}],"direction":"INGRESS","kind":"compute#firewall","name":"allow-ssh","network":"projects/cloudclusters/global/networks/default","priority":1000,"selfLink":"projects/cloudclusters/global/firewalls/allow-ssh","sourceRanges":["0.0.0.0/0"]}
 end
