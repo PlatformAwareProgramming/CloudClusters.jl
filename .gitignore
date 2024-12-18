@@ -2,4 +2,5 @@ Manifest.toml
 
 ### Testing related ###
 example.cluster
-tests/
+creds.json
+#tests/
