@@ -269,7 +269,7 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
 
     public_key = read("/tmp/$(cluster.name).pub", String)
 
-    gcp_add_to_common_metadata(cluster, public_key)
+    #gcp_add_to_common_metadata(cluster, public_key)
 
     params = Vector{Dict}()
     
@@ -302,7 +302,7 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
                 ), 
                 Dict(
                     "key" => "ssh-keys",
-                    "value" => "cloudclusters : $public_key"
+                    "value" => "cloudclusters:$public_key"
                 )]
         ))
     end
@@ -373,10 +373,10 @@ function gcp_set_hostfile(cluster::Cluster, internal_key_name)
         public_ip = gcp_get_ips_instance(cluster, instance)[:public_ip]
        # private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo hostnamectl set-hostname $instance"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "echo '$hostfilefile_content' > /home/cloudclusters/hostfile"`)
 #        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo chown ubuntu:ubuntu /etc/hosts"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo chown cloudclusters:cloudclusters /etc/hosts"`)
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "cat hosts.tmp > /etc/hosts"`)
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo chown root:root /etc/hosts"`)
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "rm hosts.tmp"`)
@@ -554,7 +554,7 @@ function gcp_resume_cluster(cluster::Cluster)
     gcp_await_check(cluster.cluster_nodes, "ok")
     for instance in keys(cluster.cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster.cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
-        try_run(`ssh -i /tmp/$(cluster.name) -o StrictHostKeyChecking=no ubuntu@$public_ip uptime`)
+        try_run(`ssh -i /tmp/$(cluster.name) -o StrictHostKeyChecking=no cloudclusters@$public_ip uptime`)
     end
 end
 
@@ -591,25 +591,36 @@ function gcp_get_instance_dict(cluster::Cluster, name)
     return JSON.parse(String(GCPAPI.compute(:Instance, :get, cluster.project, cluster.zone, name)))
 end
 
-function gcp_add_to_common_metadata(cluster::Cluster, public_key)
+#= function gcp_add_to_common_metadata(cluster::Cluster, public_key)
     project_dict = JSON.parse(String(GCPAPI.compute(:Project, :get, cluster.project)))
 
     fingerprint = project_dict["commonInstanceMetadata"]["fingerprint"]
+
+    existing_ssh_keys = ""
+
+    items = get(project_dict["commonInstanceMetadata"], "items", [])
+    for item in items
+        if item["key"] == "ssh-keys"
+            existing_ssh_keys = item["value"]
+            break
+        end
+    end
     
     public_key = replace(public_key, r"[\x00-\x1F\x7F]" => "")
+    existing_ssh_keys = replace(existing_ssh_keys, r"[\x00-\x1F\x7F]" => "")
 
-    metadata_data = JSON.parse("{
+    metadata_dict = JSON.parse("{
                                 \"items\": [
                                 {
                                 \"key\": \"ssh-keys\",
-                                \"value\": \"cloudclusters : $public_key\"
+                                \"value\": \"$existing_ssh_keys\\ncloudclusters:$public_key\"
                                 }
                                 ],
                                 \"fingerprint\": \"$fingerprint\"
                                 }")
 
-    GCPAPI.compute(:Project, :setCommonInstanceMetadata, cluster.project; data=metadata_data)
-end
+    GCPAPI.compute(:Project, :setCommonInstanceMetadata, cluster.project; data=metadata_dict)
+end =#
 
 function gcp_allow_ssh() # TODO
     #POST https://compute.googleapis.com/compute/beta/projects/cloudclusters/global/firewalls
