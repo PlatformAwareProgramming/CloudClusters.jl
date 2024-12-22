@@ -92,10 +92,14 @@ end
 
 function launch_processes(_::Type{GoogleCloud}, cluster_type, cluster_handle, ips, user_id)
     @warn "CALLED NOT IMPLEMENTED METHOD!"
+
+    return -1
 end
 
 function launch_processes(_::Type{GoogleCloud}, cluster_type, cluster_handle, ips::Vector{Dict})
     @warn "CALLED NOT IMPLEMENTED METHOD!"
+
+    return -1
 end
 
 #==== INTERRUPT CLUSTER ====#
