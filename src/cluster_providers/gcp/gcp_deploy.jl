@@ -1,8 +1,21 @@
 
 gcp_cluster_info = Dict()
 
-function get_ips(_::Type{GoogleCloud}, cluster_handle)
-    return gcp_get_ips_instance(gcp_cluster_info[cluster_handle], cluster_handle)
+function get_ips(gcptype::Type{GoogleCloud}, cluster_handle)
+    ips = Vector{Dict}()
+    cluster = gcp_cluster_info[cluster_handle]
+    try
+        for i in cluster.count
+            name = lowercase(String(cluster_handle)) * string(i)
+            push!(ips, gcp_get_ips_instance(cluster, name))
+        end 
+    catch err 
+        terminate_cluster(gcptype, cluster_handle)
+
+        throw(err)
+    end
+    
+    return ips
 end
 
 # 1. creates a worker process in the master node
@@ -11,9 +24,26 @@ function deploy_cluster(_::Type{GoogleCloud},
                     _::Type{<:ManagerWorkers},
                     cluster_handle,
                     features)
-    cluster = GCPManagerWorkers(string(cluster_handle))
+    node_count = get(cluster_features, :node_count, 1)
+    source_image = get(cluster_features, :source_image, defaults_dict[GoogleCloud][:source_image]) 
+    zone = get(cluster_features, :zone, defaults_dict[GoogleCloud][:zone]) 
+    project = defaults_dict[GoogleCloud][:project]
 
-    gcp_create_cluster(cluster)
+    cluster = GCPManagerWorkers(string(cluster_handle), 
+                            source_image, 
+                            source_image,
+                            node_count, 
+                            instance_type, 
+                            zone, 
+                            project, 
+                            nothing)
+    try
+        cluster = gcp_create_cluster(cluster)
+    catch e
+        terminate_cluster(gcptype, cluster_handle)
+
+        throw(e)
+    end
 
     gcp_cluster_info[cluster_handle] = cluster
 
@@ -42,7 +72,7 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
                             project, 
                             nothing)
     try
-        gcp_create_cluster(cluster)
+        cluster = gcp_create_cluster(cluster)
     catch e
         terminate_cluster(gcptype, cluster_handle)
 

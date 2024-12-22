@@ -22,6 +22,10 @@ mutable struct GCPManagerWorkers <: ManagerWorkers #Cluster
     source_image_master::String
     source_image_worker::String
     count::Int
+    instance_type::String
+    zone::String
+    project::String
+    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
 #=     instance_type_master::String
     instance_type_worker::String
     count::Int
@@ -79,18 +83,13 @@ end
 # PUBLIC
 """
 Creates a compute instances cluster and returns it.
-
--> Cluster
 """
 function gcp_create_cluster(cluster::Cluster)
     return gcp_create_instances(cluster)
 end
 
 
-"""
--> Dict
-"""
-function gcp_get_ips_instance(cluster::Cluster, name)
+function gcp_get_ips_instance(cluster::Cluster, name) 
     public_ip = gcp_get_instance_dict(cluster, name)["networkInterfaces"][1]["accessConfigs"][1]["natIP"]
     private_ip = gcp_get_instance_dict(cluster, name)["networkInterfaces"][1]["networkIP"]
     
