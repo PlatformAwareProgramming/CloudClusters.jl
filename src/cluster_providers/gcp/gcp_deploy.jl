@@ -14,7 +14,7 @@ function get_ips(gcptype::Type{GoogleCloud}, cluster_handle)
 
         throw(err)
     end
-    
+
     return ips
 end
 
@@ -87,29 +87,33 @@ end
 # 1. create a set of GCP instances using the GCP API
 # 2. run deploy_cluster to clusterize them and link to them
 function deploy_cluster(type::Type{GoogleCloud}, mode::Type{CreateMode}, features)
-
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
 function launch_processes(_::Type{GoogleCloud}, cluster_type, cluster_handle, ips, user_id)
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
+end
 
+function launch_processes(_::Type{GoogleCloud}, cluster_type, cluster_handle, ips::Vector{Dict})
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
 #==== INTERRUPT CLUSTER ====#
 
 function interrupt_cluster(_::Type{GoogleCloud}, cluster_handle)
-    
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
 #==== CONTINUE CLUSTER ====#
 
 function resume_cluster(type::Type{GoogleCloud}, cluster_handle)
-    
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
 #==== TERMINATE CLUSTER ====#
 
 function terminate_cluster(type::Type{GoogleCloud}, cluster_handle)
-    
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
 #cluster_isrunning(_::Type{GoogleCloud}, cluster_handle) = gcp_cluster_info[cluster_handle] |> gcp_cluster_isrunning
