@@ -26,19 +26,6 @@ mutable struct GCPManagerWorkers <: ManagerWorkers #Cluster
     zone::String
     project::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-#=     instance_type_master::String
-    instance_type_worker::String
-    count::Int
-    image_id_master::String
-    image_id_worker::String
-    subnet_id::Union{String, Nothing}
-    placement_group::Union{String, Nothing}
-    auto_pg::Bool
-    security_group_id::Union{String, Nothing}
-    auto_sg::Bool
-    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-    shared_fs::Bool
-    features::Dict{Symbol, Any} =#
 end
 
 
@@ -50,23 +37,14 @@ mutable struct GCPPeerWorkers <: PeerWorkers # Cluster
     zone::String
     project::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-#=     instance_type::String
-    count::Int
-    image_id::String
-    subnet_id::Union{String, Nothing}
-    placement_group::Union{String, Nothing}
-    auto_pg::Bool
-    security_group_id::Union{String,Nothing}
-    auto_sg::Bool
-    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-    shared_fs::Bool
-    features::Dict{Symbol, Any} =#
 end
 
 mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
     name::String
-    #source_image::String
-    #count::Int
+    source_image::String
+    count::Int
+    zone::String
+    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
 #=     instance_type::String
     count::Int
     image_id::String
@@ -211,31 +189,77 @@ systemctl restart ssh
 end
 
 function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
+    public_key = read("/tmp/$(cluster.name).pub", String)
+
    params_master = Dict(
-        "InstanceType" => cluster.instance_type_master,
-        "ImageId" => cluster.image_id_master,
-        "TagSpecification" => 
-            Dict(
-                "ResourceType" => "instance",
-                "Tag" => [Dict("Key" => "cluster", "Value" => cluster.name),
-                          Dict("Key" => "Name", "Value" => "master") ]
-            ),
-        "UserData" => user_data_base64,
+    "disks" => [Dict(
+        "autoDelete" => true,
+        "boot" => true,
+        "initializeParams" => Dict(
+            "diskSizeGb" => 50,
+            "sourceImage" => "projects/$(cluster.source_image_master)"
+        ),
+        "mode" => "READ_WRITE",
+        "type" => "PERSISTENT"
+    )],
+    "zone" => cluster.zone,
+    "machineType" => "zones/$(cluster.zone)/machineTypes/$(cluster.instance_type)",
+    "name" => lowercase(cluster.name) * string(1),
+    "networkInterfaces" => [Dict(
+        "accessConfigs" => [Dict(
+            "name" => "external-nat",
+            "type" => "ONE_TO_ONE_NAT"
+        )],
+        "network" => "https://www.googleapis.com/compute/v1/projects/cloudclusters/global/networks/default"
+    )],
+    "metadata" => 
+        "items" => [Dict(
+            "key" => "startup-script",
+            "value" => user_data_base64
+        ), 
+        Dict(
+            "key" => "ssh-keys",
+            "value" => "cloudclusters:$public_key"
+        )]
     )
 
-    params_workers = Dict(
-        "InstanceType" => cluster.instance_type_worker,
-        "ImageId" => cluster.image_id_worker,
-        "TagSpecification" => 
-            Dict(
-                "ResourceType" => "instance",
-                "Tag" => [Dict("Key" => "cluster", "Value" => cluster.name),
-                          Dict("Key" => "Name", "Value" => "worker") ]
-            ),
-        "UserData" => user_data_base64,
-    )
+    params_workers = Vector{Dict}()
 
-    if !isnothing(cluster.subnet_id)
+    for i in cluster.count - 1
+        push!(params_workers, Dict(
+            "disks" => [Dict(
+                "autoDelete" => true,
+                "boot" => true,
+                "initializeParams" => Dict(
+                    "diskSizeGb" => 50,
+                    "sourceImage" => "projects/$(cluster.source_image_worker)"
+                ),
+                "mode" => "READ_WRITE",
+                "type" => "PERSISTENT"
+            )],
+            "zone" => cluster.zone,
+            "machineType" => "zones/$(cluster.zone)/machineTypes/$(cluster.instance_type)",
+            "name" => lowercase(cluster.name) * string(i+1),
+            "networkInterfaces" => [Dict(
+                "accessConfigs" => [Dict(
+                    "name" => "external-nat",
+                    "type" => "ONE_TO_ONE_NAT"
+                )],
+                "network" => "https://www.googleapis.com/compute/v1/projects/cloudclusters/global/networks/default"
+            )],
+            "metadata" => 
+                "items" => [Dict(
+                    "key" => "startup-script",
+                    "value" => user_data_base64
+                ), 
+                Dict(
+                    "key" => "ssh-keys",
+                    "value" => "cloudclusters:$public_key"
+                )]
+        ))
+    end
+
+    #= if !isnothing(cluster.subnet_id)
         params_master["SubnetId"] = cluster.subnet_id
         params_workers["SubnetId"] = cluster.subnet_id
     end
@@ -248,7 +272,7 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
     if !isnothing(cluster.security_group_id)
         params_master["SecurityGroupId"] = [cluster.security_group_id]
         params_workers["SecurityGroupId"] = [cluster.security_group_id]
-    end
+    end =#
 
     return params_master, params_workers
 end
