@@ -25,13 +25,14 @@ function deploy_cluster(_::Type{GoogleCloud},
                     cluster_handle,
                     features)
     node_count = get(cluster_features, :node_count, 1)
-    source_image = get(cluster_features, :source_image, defaults_dict[GoogleCloud][:source_image]) 
+    source_image_workers = get(cluster_features, :source_image, defaults_dict[GoogleCloud][:source_image]) 
+    source_image_master = get(cluster_features, :source_image_master, defaults_dict[GoogleCloud][:source_image_master])
     zone = get(cluster_features, :zone, defaults_dict[GoogleCloud][:zone]) 
     project = defaults_dict[GoogleCloud][:project]
 
     cluster = GCPManagerWorkers(string(cluster_handle), 
-                            source_image, 
-                            source_image,
+                            source_image_master, 
+                            source_image_workers,
                             node_count, 
                             instance_type, 
                             zone, 
@@ -120,4 +121,11 @@ function terminate_cluster(type::Type{GoogleCloud}, cluster_handle)
     @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
-#cluster_isrunning(_::Type{GoogleCloud}, cluster_handle) = gcp_cluster_info[cluster_handle] |> gcp_cluster_isrunning
+function cluster_isrunning(_::Type{GoogleCloud}, cluster_handle)
+    try
+        return gcp_cluster_info[cluster_handle] |> gcp_cluster_isrunning
+    catch e
+        @warn "Erro ao verificar o status do cluster: ", e
+        return false
+    end
+end

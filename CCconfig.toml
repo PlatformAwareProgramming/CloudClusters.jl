@@ -27,5 +27,6 @@ subnet_id = "subnet-3fca5558"
 [gcp]
 
 source_image = "ubuntu-os-pro-cloud/global/images/ubuntu-pro-2404-noble-amd64-v20241115"
+source_image_master = "ubuntu-os-pro-cloud/global/images/ubuntu-pro-2404-noble-amd64-v20241115"
 zone = "us-central1-a"
 project = "cloudclusters"

@@ -43,6 +43,7 @@ mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
     name::String
     source_image::String
     count::Int
+    instance_type::String
     zone::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
 #=     instance_type::String
@@ -422,6 +423,8 @@ function gcp_create_instances(cluster::ManagerWorkers)
     # Configurando a conexão SSH.
     internal_key_name, user_data = gcp_set_up_ssh_connection(cluster.name)
 
+    gcp_allow_ssh(cluster.project)
+
     user_data_base64 = base64encode(user_data)
 
     # Criando as instâncias
@@ -464,6 +467,8 @@ function gcp_create_instances(cluster::PeerWorkers)
 
     # Configurando a conexão SSH.
     internal_key_name, user_data = gcp_set_up_ssh_connection(new_cluster.name)
+
+    gcp_allow_ssh(cluster.project)
 
     user_data_base64 = base64encode(user_data)
 
@@ -645,7 +650,20 @@ end
     GCPAPI.compute(:Project, :setCommonInstanceMetadata, cluster.project; data=metadata_dict)
 end =#
 
-function gcp_allow_ssh() # TODO
+function gcp_allow_ssh(project)
     #POST https://compute.googleapis.com/compute/beta/projects/cloudclusters/global/firewalls
-#{"allowed":[{"ports":["22"]}],"direction":"INGRESS","kind":"compute#firewall","name":"allow-ssh","network":"projects/cloudclusters/global/networks/default","priority":1000,"selfLink":"projects/cloudclusters/global/firewalls/allow-ssh","sourceRanges":["0.0.0.0/0"]}
+    firewall_rule = Dict(
+        "allowed" => [
+            Dict("IPProtocol" => "tcp",
+                "ports" => ["22"])],
+        "direction" => "INGRESS",
+        "kind" => "compute#firewall",
+        "name" => "allow-ssh",
+        "network" => "projects/$project/global/networks/default",
+        "priority" => 1000,
+        "selfLink" => "projects/$project/global/firewalls/allow-ssh",
+        "sourceRanges" => ["0.0.0.0/0"]
+    )
+
+    GCPAPI.compute(:Firewall, :insert, project; data=firewall_rule)
 end
