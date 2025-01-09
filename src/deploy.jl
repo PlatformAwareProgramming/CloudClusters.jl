@@ -54,11 +54,11 @@ function cluster_deploy(contract_handle, config_args...)
     cluster_deploy_info[cluster_handle] = Dict(:pids => Vector{Int}(), :features => cluster_features)
  
     pids = nothing
-    try
+    #try
         pids = cluster_deploy(cluster_type, cluster_handle, cluster_features, instance_type)
-    catch e
-        @warn "some error deploying cluster $cluster_handle ($e)"
-    end
+    #catch e
+    #    @warn "some error deploying cluster $cluster_handle ($e)"
+    #end
 
     if !isnothing(pids) 
         cluster_deploy_info[cluster_handle][:pids] = pids
@@ -101,7 +101,7 @@ function cluster_deploy(cluster_type::Type{<:ManagerWorkers}, cluster_handle, cl
 
 #    cluster_deploy_info[cluster_handle] = Dict(:features => cluster_features)
 
-    deploy_cluster(cluster_provider, cluster_type, CreateMode, cluster_handle, cluster_features, (instance_type_master, instance_type_worker))
+    deploy_cluster(cluster_provider, cluster_type, CreateMode, cluster_handle, cluster_features, instance_type_master)
     
     ips = get_ips(cluster_provider, cluster_handle)
     launch_processes(cluster_provider, cluster_type, cluster_handle, ips)

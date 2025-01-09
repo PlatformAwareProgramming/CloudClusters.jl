@@ -192,7 +192,9 @@ end
 function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
     public_key = read("/tmp/$(cluster.name).pub", String)
 
-   params_master = Dict(
+    params_master = Vector{Dict}()
+
+   push!(params_master, Dict(
     "disks" => [Dict(
         "autoDelete" => true,
         "boot" => true,
@@ -222,7 +224,7 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
             "key" => "ssh-keys",
             "value" => "cloudclusters:$public_key"
         )]
-    )
+    ))
 
     params_workers = Vector{Dict}()
 
@@ -423,31 +425,21 @@ function gcp_create_instances(cluster::ManagerWorkers)
     # Configurando a conexão SSH.
     internal_key_name, user_data = gcp_set_up_ssh_connection(cluster.name)
 
-    gcp_allow_ssh(cluster.project)
+    try gcp_allow_ssh(cluster.project) catch end
 
     user_data_base64 = base64encode(user_data)
 
     # Criando as instâncias
     params_master, params_workers = gcp_create_params(cluster, user_data_base64)
     # Criar o headnode
-    instance_headnode = Ec2.run_instances(1, 1, params_master)
-    cluster_nodes[:master] = instance_headnode["instancesSet"]["item"]["instanceId"]
+    gcp_compute_instance_insert(new_cluster, params_master)
+    cluster_nodes[Symbol("master1")] = lowercase(new_cluster.name) * string(0)
 
     # Criar os worker nodes.
-    params_workers["InstanceType"] = new_cluster.instance_type_worker
-    params_workers["TagSpecification"]["Tag"][2]["Value"] = "worker"
-    count = new_cluster.count
-    instances_workers = Ec2.run_instances(count, count, params_workers)
-    workers = count
-    for i in 1:count
-        instance = ""
-        if count > 1
-            instance = instances_workers["instancesSet"]["item"][i]
-        elseif count == 1
-            instance = instances_workers["instancesSet"]["item"]
-        end
-        instance_id = instance["instanceId"]
-        cluster_nodes[Symbol("worker$i")] = instance_id
+    gcp_compute_instance_insert(new_cluster, params_workers)
+
+    for i in 1:new_cluster.count
+        cluster_nodes[Symbol("worker$i")] = lowercase(new_cluster.name) * string(i)
     end
 
     new_cluster.cluster_nodes = cluster_nodes
@@ -468,7 +460,7 @@ function gcp_create_instances(cluster::PeerWorkers)
     # Configurando a conexão SSH.
     internal_key_name, user_data = gcp_set_up_ssh_connection(new_cluster.name)
 
-    gcp_allow_ssh(cluster.project)
+    try gcp_allow_ssh(cluster.project) catch end
 
     user_data_base64 = base64encode(user_data)
 
@@ -494,7 +486,8 @@ function gcp_create_instances(cluster::PeerWorkers)
 end
 
 function gcp_compute_instance_insert(cluster::Cluster, params)
-    for i = 1:cluster.count
+    vector_size = size(params, 1)
+    for i = 1:vector_size
         GCPAPI.compute(:Instance, :insert, cluster.project, cluster.zone; data=params[i])
     end
 end

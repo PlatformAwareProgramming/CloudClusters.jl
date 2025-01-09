@@ -20,10 +20,12 @@ end
 
 # 1. creates a worker process in the master node
 # 2. from the master node, create worker processes in the compute nodes with MPIClusterManager
-function deploy_cluster(_::Type{GoogleCloud},
+function deploy_cluster(gcptype::Type{GoogleCloud},
                     _::Type{<:ManagerWorkers},
+                    _::Type{<:CreateMode},
                     cluster_handle,
-                    features)
+                    cluster_features,
+                    instance_type)
     node_count = get(cluster_features, :node_count, 1)
     source_image_workers = get(cluster_features, :source_image, defaults_dict[GoogleCloud][:source_image]) 
     source_image_master = get(cluster_features, :source_image_master, defaults_dict[GoogleCloud][:source_image_master])
