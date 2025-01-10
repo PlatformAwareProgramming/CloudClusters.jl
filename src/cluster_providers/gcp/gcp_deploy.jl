@@ -31,12 +31,15 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
     source_image_master = get(cluster_features, :source_image_master, defaults_dict[GoogleCloud][:source_image_master])
     zone = get(cluster_features, :zone, defaults_dict[GoogleCloud][:zone]) 
     project = defaults_dict[GoogleCloud][:project]
+    instance_type_master = instance_type[1]
+    instance_type_worker = instance_type[2]
 
     cluster = GCPManagerWorkers(string(cluster_handle), 
                             source_image_master, 
                             source_image_workers,
                             node_count, 
-                            instance_type, 
+                            instance_type_master, 
+                            instance_type_worker,
                             zone, 
                             project, 
                             nothing)

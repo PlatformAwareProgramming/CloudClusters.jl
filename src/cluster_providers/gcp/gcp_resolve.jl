@@ -27,7 +27,7 @@ for (instance_type, instance_info) in db
         accelerator_memory_size = accelerator_specs[ACCELERATOR_MEM_SIZE]
     else
         if accelerator_desc != "na"
-            @warn "The $accelerator_desc accelerator is not registered in the database."
+            #@warn "The $accelerator_desc accelerator is not registered in the database."
         end
         accelerator_type = "AcceleratorType"
         accelerator_arch = "AcceleratorArchitecture"

@@ -22,7 +22,8 @@ mutable struct GCPManagerWorkers <: ManagerWorkers #Cluster
     source_image_master::String
     source_image_worker::String
     count::Int
-    instance_type::String
+    instance_type_master::String
+    instance_type_worker::String
     zone::String
     project::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
@@ -46,17 +47,6 @@ mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
     instance_type::String
     zone::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-#=     instance_type::String
-    count::Int
-    image_id::String
-    subnet_id::Union{String, Nothing}
-    placement_group::Union{String, Nothing}
-    auto_pg::Bool
-    security_group_id::Union{String,Nothing}
-    auto_sg::Bool
-    cluster_nodes::Union{Dict{Symbol, String}, Nothing}
-    shared_fs::Bool
-    features::Dict{Symbol, Any} =#
 end
 
 # PUBLIC
@@ -86,10 +76,6 @@ function gcp_terminate_cluster(cluster::Cluster)
             status = gcp_get_instance_status(cluster, instance[2])
         end
     end
-    
-    cluster.shared_fs && gcp_delete_efs(cluster.file_system_id)
-    cluster.auto_sg && gcp_delete_security_group(cluster.security_group_id)
-    cluster.auto_pg && gcp_delete_placement_group(cluster.placement_group)
 
     return
 end
@@ -100,23 +86,11 @@ Grupo de Alocação
 =#
 # PUBLIC
 function gcp_create_placement_group(name)
-    params = Dict(
-        "GroupName" => name, 
-        "Strategy" => "cluster",
-        "TagSpecification" => 
-            Dict(
-                "ResourceType" => "placement-group",
-                "Tag" => [Dict("Key" => "cluster", "Value" => name),
-                          Dict("Key" => "Name", "Value" => name)]
-            )
-        )
-    
-    return Ec2.create_placement_group(params)["placementGroup"]["groupName"]
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
 function gcp_delete_placement_group(name)
-    params = Dict("GroupName" => name)
-    Ec2.delete_placement_group(name)
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
 #=
@@ -124,37 +98,11 @@ Grupo de Segurança
 =#
 # PUBLIC
 function gcp_create_security_group(name, description)
-    # Criamos o grupo
-    params = Dict(
-        "TagSpecification" => 
-            Dict(
-                "ResourceType" => "security-group",
-                "Tag" => [Dict("Key" => "cluster", "Value" => name),
-                          Dict("Key" => "Name", "Value" => name)]
-            )
-    )
-    id = Ec2.create_security_group(name, description, params)["groupId"]
-
-    # Liberamos o SSH.
-    params = Dict(
-        "GroupId" => id, 
-        "CidrIp" => "0.0.0.0/0",
-        "IpProtocol" => "tcp",
-        "FromPort" => 22,
-        "ToPort" => 22)
-    Ec2.authorize_security_group_ingress(params)
-
-    # Liberamos o tráfego interno do grupo.
-    sg_name =  Ec2.describe_security_groups(Dict("GroupId" => id))["securityGroupInfo"]["item"]["groupName"]
-    params = Dict(
-        "GroupId" => id, 
-        "SourceSecurityGroupName" => sg_name)
-    Ec2.authorize_security_group_ingress(params)
-    return id
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
 function gcp_delete_security_group(id)
-    Ec2.delete_security_group(Dict("GroupId" => id))
+    @warn "CALLED NOT IMPLEMENTED METHOD!"
 end
 
 #=
@@ -206,7 +154,7 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
         "type" => "PERSISTENT"
     )],
     "zone" => cluster.zone,
-    "machineType" => "zones/$(cluster.zone)/machineTypes/$(cluster.instance_type)",
+    "machineType" => "zones/$(cluster.zone)/machineTypes/$(cluster.instance_type_master)",
     "name" => lowercase(cluster.name) * string(1),
     "networkInterfaces" => [Dict(
         "accessConfigs" => [Dict(
@@ -228,7 +176,7 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
 
     params_workers = Vector{Dict}()
 
-    for i in cluster.count - 1
+    for i = 1:cluster.count - 1
         push!(params_workers, Dict(
             "disks" => [Dict(
                 "autoDelete" => true,
@@ -241,8 +189,8 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
                 "type" => "PERSISTENT"
             )],
             "zone" => cluster.zone,
-            "machineType" => "zones/$(cluster.zone)/machineTypes/$(cluster.instance_type)",
-            "name" => lowercase(cluster.name) * string(i+1),
+            "machineType" => "zones/$(cluster.zone)/machineTypes/$(cluster.instance_type_worker)",
+            "name" => lowercase(cluster.name) * string(i + 1),
             "networkInterfaces" => [Dict(
                 "accessConfigs" => [Dict(
                     "name" => "external-nat",
@@ -262,40 +210,11 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
         ))
     end
 
-    #= if !isnothing(cluster.subnet_id)
-        params_master["SubnetId"] = cluster.subnet_id
-        params_workers["SubnetId"] = cluster.subnet_id
-    end
-
-    if !isnothing(cluster.placement_group)
-        params_master["Placement"] = Dict("GroupName" => cluster.placement_group)
-        params_workers["Placement"] = Dict("GroupName" => cluster.placement_group)
-    end
-
-    if !isnothing(cluster.security_group_id)
-        params_master["SecurityGroupId"] = [cluster.security_group_id]
-        params_workers["SecurityGroupId"] = [cluster.security_group_id]
-    end =#
-
     return params_master, params_workers
 end
  
 function gcp_create_params(cluster::PeerWorkers, user_data_base64)
-#=     params = Dict(
-        "InstanceType" => cluster.instance_type,
-        "ImageId" => cluster.source_image,
-        "TagSpecification" => 
-            Dict(
-                "ResourceType" => "instance",
-                "Tag" => [Dict("Key" => "cluster", "Value" => cluster.name),
-                          Dict("Key" => "Name", "Value" => "peer") ]
-            ),
-        "UserData" => user_data_base64,
-    ) =#
-
     public_key = read("/tmp/$(cluster.name).pub", String)
-
-    #gcp_add_to_common_metadata(cluster, public_key)
 
     params = Vector{Dict}()
     
@@ -332,18 +251,6 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
                 )]
         ))
     end
-
-#=     if !isnothing(cluster.zone)
-        params["zone"] = cluster.zone
-    end =#
-
-#=     if !isnothing(cluster.placement_group)
-        params["Placement"] = Dict("GroupName" => cluster.placement_group)
-    end =#
-
-#=     if !isnothing(cluster.security_group_id)
-        params["SecurityGroupId"] = [cluster.security_group_id]
-    end =#
 
     return params
 end
@@ -383,16 +290,6 @@ function gcp_set_hostfile(cluster::Cluster, internal_key_name)
         end
     end
 
-    #=h = Threads.@spawn begin
-        public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
-        for instance in keys(cluster_nodes)
-            for instance_other in keys(cluster_nodes)
-                @info "--- $instance -> $instance_other"
-                try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "ssh $instance_other uptime"`)
-            end
-        end
-    end=#
-
     # Atualiza o hostname e o hostfile.
     for i = 1:cluster.count
         instance = lowercase(cluster.name) * string(i)
@@ -407,9 +304,6 @@ function gcp_set_hostfile(cluster::Cluster, internal_key_name)
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo chown root:root /etc/hosts"`)
         try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "rm hosts.tmp"`)
     end
-
-    #wait(h)
-
 end
 
 
@@ -433,13 +327,13 @@ function gcp_create_instances(cluster::ManagerWorkers)
     params_master, params_workers = gcp_create_params(cluster, user_data_base64)
     # Criar o headnode
     gcp_compute_instance_insert(new_cluster, params_master)
-    cluster_nodes[Symbol("master1")] = lowercase(new_cluster.name) * string(0)
+    cluster_nodes[Symbol("master1")] = lowercase(new_cluster.name) * string(1)
 
     # Criar os worker nodes.
     gcp_compute_instance_insert(new_cluster, params_workers)
 
-    for i in 1:new_cluster.count
-        cluster_nodes[Symbol("worker$i")] = lowercase(new_cluster.name) * string(i)
+    for i in 1:new_cluster.count - 1
+        cluster_nodes[Symbol("worker$i")] = lowercase(new_cluster.name) * string(i + 1)
     end
 
     new_cluster.cluster_nodes = cluster_nodes
@@ -480,7 +374,7 @@ function gcp_create_instances(cluster::PeerWorkers)
 
     gcp_set_hostfile(new_cluster, internal_key_name)
 
-   # gcp_remove_temp_files(internal_key_name)
+    gcp_remove_temp_files(internal_key_name)
 
     return new_cluster
 end
@@ -532,24 +426,6 @@ function gcp_get_instance_status(cluster::Cluster, id)
     catch _
         return "notfound"
     end
-end
-
-function gcp_get_instance_check(id)
-    try
-        description = Ec2.describe_instance_status(Dict("InstanceId" => id))
-        if haskey(description["instanceStatusSet"], "item")
-            description["instanceStatusSet"]["item"]["instanceStatus"]["status"]
-        else
-            "notfound"
-        end
-    catch _
-        "notfound"
-    end
-end
-
-function gcp_get_instance_subnet(id)
-    description = Ec2.describe_instances(Dict("InstanceId" => id))
-    description["reservationSet"]["item"]["instancesSet"]["item"]["subnetId"]
 end
 
 # PUBLIC
@@ -612,7 +488,7 @@ function gcp_get_instance_dict(cluster::Cluster, name)
     return JSON.parse(String(GCPAPI.compute(:Instance, :get, cluster.project, cluster.zone, name)))
 end
 
-#= function gcp_add_to_common_metadata(cluster::Cluster, public_key)
+function gcp_add_to_common_metadata(cluster::Cluster, public_key)
     project_dict = JSON.parse(String(GCPAPI.compute(:Project, :get, cluster.project)))
 
     fingerprint = project_dict["commonInstanceMetadata"]["fingerprint"]
@@ -641,10 +517,9 @@ end
                                 }")
 
     GCPAPI.compute(:Project, :setCommonInstanceMetadata, cluster.project; data=metadata_dict)
-end =#
+end
 
 function gcp_allow_ssh(project)
-    #POST https://compute.googleapis.com/compute/beta/projects/cloudclusters/global/firewalls
     firewall_rule = Dict(
         "allowed" => [
             Dict("IPProtocol" => "tcp",

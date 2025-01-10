@@ -101,7 +101,7 @@ function cluster_deploy(cluster_type::Type{<:ManagerWorkers}, cluster_handle, cl
 
 #    cluster_deploy_info[cluster_handle] = Dict(:features => cluster_features)
 
-    deploy_cluster(cluster_provider, cluster_type, CreateMode, cluster_handle, cluster_features, instance_type_master)
+    deploy_cluster(cluster_provider, cluster_type, CreateMode, cluster_handle, cluster_features, (instance_type_master, instance_type_worker))
     
     ips = get_ips(cluster_provider, cluster_handle)
     launch_processes(cluster_provider, cluster_type, cluster_handle, ips)
