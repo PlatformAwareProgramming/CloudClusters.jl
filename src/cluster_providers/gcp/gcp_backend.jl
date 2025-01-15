@@ -27,6 +27,7 @@ mutable struct GCPManagerWorkers <: ManagerWorkers #Cluster
     zone::String
     project::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
+    features::Dict{Symbol, Any}
 end
 
 
@@ -38,6 +39,7 @@ mutable struct GCPPeerWorkers <: PeerWorkers # Cluster
     zone::String
     project::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
+    features::Dict{Symbol, Any}
 end
 
 mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
@@ -47,6 +49,7 @@ mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
     instance_type::String
     zone::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
+    features::Dict{Symbol, Any}
 end
 
 # PUBLIC
@@ -115,7 +118,7 @@ function gcp_set_up_ssh_connection(cluster_name)
    # chars = ['a':'z'; 'A':'Z'; '0':'9']
    # random_suffix = join(chars[Random.rand(1:length(chars), 5)])
    internal_key_name = cluster_name
-   run(`ssh-keygen -t rsa -b 2048 -f /tmp/$internal_key_name -C cloudclusters -N ""`)
+   run(`ssh-keygen -t rsa -b 2048 -f /tmp/$internal_key_name -C ubuntu -N ""`)
    run(`chmod 400 /tmp/$internal_key_name`)
    private_key = base64encode(read("/tmp/$internal_key_name", String))
    public_key = base64encode(read("/tmp/$internal_key_name.pub", String))
@@ -161,7 +164,7 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
             "name" => "external-nat",
             "type" => "ONE_TO_ONE_NAT"
         )],
-        "network" => "https://www.googleapis.com/compute/v1/projects/cloudclusters/global/networks/default"
+        "network" => "https://www.googleapis.com/compute/v1/projects/$(cluster.project)/global/networks/default"
     )],
     "metadata" => 
         "items" => [Dict(
@@ -170,7 +173,7 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
         ), 
         Dict(
             "key" => "ssh-keys",
-            "value" => "cloudclusters:$public_key"
+            "value" => "ubuntu:$public_key"
         )]
     ))
 
@@ -196,7 +199,7 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
                     "name" => "external-nat",
                     "type" => "ONE_TO_ONE_NAT"
                 )],
-                "network" => "https://www.googleapis.com/compute/v1/projects/cloudclusters/global/networks/default"
+                "network" => "https://www.googleapis.com/compute/v1/projects/$(cluster.project)global/networks/default"
             )],
             "metadata" => 
                 "items" => [Dict(
@@ -205,7 +208,7 @@ function gcp_create_params(cluster::ManagerWorkers, user_data_base64)
                 ), 
                 Dict(
                     "key" => "ssh-keys",
-                    "value" => "cloudclusters:$public_key"
+                    "value" => "ubuntu:$public_key"
                 )]
         ))
     end
@@ -238,7 +241,7 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
                     "name" => "external-nat",
                     "type" => "ONE_TO_ONE_NAT"
                 )],
-                "network" => "https://www.googleapis.com/compute/v1/projects/cloudclusters/global/networks/default"
+                "network" => "https://www.googleapis.com/compute/v1/projects/$(cluster.project)/global/networks/default"
             )],
             "metadata" => 
                 "items" => [Dict(
@@ -247,7 +250,7 @@ function gcp_create_params(cluster::PeerWorkers, user_data_base64)
                 ), 
                 Dict(
                     "key" => "ssh-keys",
-                    "value" => "cloudclusters:$public_key"
+                    "value" => "ubuntu:$public_key"
                 )]
         ))
     end
@@ -295,14 +298,14 @@ function gcp_set_hostfile(cluster::Cluster, internal_key_name)
         instance = lowercase(cluster.name) * string(i)
         public_ip = gcp_get_ips_instance(cluster, instance)[:public_ip]
        # private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo hostnamectl set-hostname $instance"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "echo '$hostfilefile_content' > /home/cloudclusters/hostfile"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
 #        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo chown cloudclusters:cloudclusters /etc/hosts"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "cat hosts.tmp > /etc/hosts"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "sudo chown root:root /etc/hosts"`)
-        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no cloudclusters@$public_ip "rm hosts.tmp"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown ubuntu:ubuntu /etc/hosts"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "cat hosts.tmp > /etc/hosts"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown root:root /etc/hosts"`)
+        try_run(`ssh -i /tmp/$internal_key_name -o StrictHostKeyChecking=no ubuntu@$public_ip "rm hosts.tmp"`)
     end
 end
 
@@ -451,7 +454,7 @@ function gcp_resume_cluster(cluster::Cluster)
     gcp_await_check(cluster.cluster_nodes, "ok")
     for instance in keys(cluster.cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster.cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
-        try_run(`ssh -i /tmp/$(cluster.name) -o StrictHostKeyChecking=no cloudclusters@$public_ip uptime`)
+        try_run(`ssh -i /tmp/$(cluster.name) -o StrictHostKeyChecking=no ubuntu@$public_ip uptime`)
     end
 end
 
@@ -510,7 +513,7 @@ function gcp_add_to_common_metadata(cluster::Cluster, public_key)
                                 \"items\": [
                                 {
                                 \"key\": \"ssh-keys\",
-                                \"value\": \"$existing_ssh_keys\\ncloudclusters:$public_key\"
+                                \"value\": \"$existing_ssh_keys\\nubuntu:$public_key\"
                                 }
                                 ],
                                 \"fingerprint\": \"$fingerprint\"

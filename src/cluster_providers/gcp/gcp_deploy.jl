@@ -42,7 +42,9 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
                             instance_type_worker,
                             zone, 
                             project, 
-                            nothing)
+                            nothing,
+                            cluster_features)
+    
     try
         cluster = gcp_create_cluster(cluster)
     catch e
@@ -76,7 +78,8 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
                             instance_type, 
                             zone, 
                             project, 
-                            nothing)
+                            nothing,
+                            cluster_features)
     try
         cluster = gcp_create_cluster(cluster)
     catch e
