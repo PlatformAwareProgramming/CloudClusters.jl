@@ -90,22 +90,16 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
     return cluster
 end
 
-# 1. create a set of GCP instances using the GCP API
-# 2. run deploy_cluster to clusterize them and link to them
-function deploy_cluster(type::Type{GoogleCloud}, mode::Type{CreateMode}, features)
-    @warn "CALLED NOT IMPLEMENTED METHOD!"
-end
-
 function launch_processes(_::Type{GoogleCloud}, cluster_type, cluster_handle, ips, user_id)
-    @warn "CALLED NOT IMPLEMENTED METHOD!"
+    cluster = gcp_cluster_info[cluster_handle]
 
-    return -1
+    return launch_processes_ssh(cluster.features, cluster_type, ips)
 end
 
 function launch_processes(_::Type{GoogleCloud}, cluster_type, cluster_handle, ips::Vector{Dict})
-    @warn "CALLED NOT IMPLEMENTED METHOD!"
+    cluster = gcp_cluster_info[cluster_handle]
 
-    return -1
+    return launch_processes_ssh(cluster.features, cluster_type, ips)
 end
 
 #==== INTERRUPT CLUSTER ====#
@@ -123,7 +117,9 @@ end
 #==== TERMINATE CLUSTER ====#
 
 function terminate_cluster(type::Type{GoogleCloud}, cluster_handle)
-    @warn "CALLED NOT IMPLEMENTED METHOD!"
+    cluster = gcp_cluster_info[cluster_handle]
+
+    gcp_terminate_cluster(cluster)
 end
 
 function cluster_isrunning(_::Type{GoogleCloud}, cluster_handle)

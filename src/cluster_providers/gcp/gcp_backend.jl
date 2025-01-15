@@ -435,7 +435,7 @@ gcp_can_interrupt(cluster::Cluster) = gcp_cluster_isrunning(cluster)
 # PUBLIC
 function gcp_interrupt_cluster(cluster::Cluster)
     gcp_stop_instances(cluster)
-    gcp_await_status(cluster.cluster_nodes, "stopped")
+    gcp_await_status(cluster, cluster.cluster_nodes, "stopped")
 end
 
 # PUBLIC
