@@ -91,7 +91,7 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:ManagerWorkers}, cluster_han
     for (node_name, instance_id) in _cluster_nodes
         cluster_nodes[Symbol(node_name)] = instance_id
     end
-    cluster_features = contents["cluster_features"] |> adjusttypefeatures
+    cluster_features = contents["cluster_features"] |> ec2_adjusttypefeatures
     shared_fs = contents["shared_fs"]
 
     cluster = EC2ManagerWorkers(string(cluster_handle), instance_type_manager, instance_type_worker, count, 
@@ -109,12 +109,12 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:ManagerWorkers}, cluster_han
 end
 
 
-function adjusttypefeatures(_cluster_features)
+function ec2_adjusttypefeatures(_cluster_features)
     cluster_features = Dict()
     for (id, vl0) in _cluster_features
         idsym = Symbol(id)
         vl1 = idsym in [:cluster_type, :node_machinetype, :provider, :node_provider] ? fetchtype(vl0) : vl0
-        vl2 = idsym in [:worker_features, :manager_features] ? adjusttypefeatures(vl1) : vl1
+        vl2 = idsym in [:worker_features, :manager_features] ? ec2_adjusttypefeatures(vl1) : vl1
         cluster_features[idsym] = vl2 
     end
     return cluster_features
@@ -137,7 +137,7 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:PeerWorkers}, cluster_handle
     for (node_name, instance_id) in _cluster_nodes
         cluster_nodes[Symbol(node_name)] = instance_id
     end
-    cluster_features = contents["cluster_features"] |> adjusttypefeatures
+    cluster_features = contents["cluster_features"] |> ec2_adjusttypefeatures
     shared_fs = contents["shared_fs"]
 
     cluster = EC2PeerWorkers(string(cluster_handle), instance_type, count, 

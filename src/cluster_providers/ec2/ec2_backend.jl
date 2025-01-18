@@ -27,6 +27,8 @@ mutable struct EC2ManagerWorkers <: ManagerWorkers #Cluster
     count::Int
     image_id_manager::String
     image_id_worker::String
+    user_manager::String
+    user_worker::String
     subnet_id::Union{String, Nothing}
     placement_group::Union{String, Nothing}
     auto_pg::Bool
@@ -44,6 +46,7 @@ mutable struct EC2PeerWorkers <: PeerWorkers # Cluster
     instance_type::String
     count::Int
     image_id::String
+    user::String
     subnet_id::Union{String, Nothing}
     placement_group::Union{String, Nothing}
     auto_pg::Bool
@@ -60,6 +63,7 @@ mutable struct EC2PeerWorkersMPI <: PeerWorkersMPI # Cluster
     instance_type::String
     count::Int
     image_id::String
+    user::String
     subnet_id::Union{String, Nothing}
     placement_group::Union{String, Nothing}
     auto_pg::Bool
@@ -169,6 +173,50 @@ Criação de Instâncias
 =# 
 
 # Funções auxiliares.
+# Funções auxiliares.
+function ec2_set_up_ssh_connection(cluster_name, comment)   
+
+    internal_key_name = cluster_name
+ 
+    ssh_path = joinpath(homedir(), ".ssh")
+ 
+    !isdir(ssh_path) && mkdir(ssh_path)
+ 
+    keypath = joinpath(ssh_path, "$internal_key_name.key")
+    pubpath = joinpath(ssh_path, "$internal_key_name.key.pub")
+ 
+    # Criar chave interna pública e privada do SSH.
+    # chars = ['a':'z'; 'A':'Z'; '0':'9']
+    # random_suffix = join(chars[Random.rand(1:length(chars), 5)])
+    run(`ssh-keygen -t rsa -b 2048 -f $keypath -C $comment -N ""`)
+    run(`chmod 400 $keypath`)
+    private_key = base64encode(read(keypath, String))
+    public_key = base64encode(read(pubpath, String))
+ 
+    private_key, public_key
+ end
+
+ function ec2_get_user_data(cluster_name, user, private_key, public_key)
+
+    # Define o script que irá instalar a chave pública e privada no headnode e workers.
+    user_data = "#!/bin/bash
+    echo $private_key | base64 -d > /home/$user/.ssh/$cluster_name
+    echo $public_key | base64 -d > /home/$user/.ssh/$cluster_name.pub
+    echo 'Host *
+       IdentityFile /home/$user/.ssh/$cluster_name
+       StrictHostKeyChecking no' > /home/$user/.ssh/config
+    cat /home/$user/.ssh/$cluster_name.pub >> /home/$user/.ssh/authorized_keys
+    chown -R $user:$user /home/$user/.ssh
+    chmod 600 /home/$user/.ssh/*
+    sed -i 's/#ClientAliveInterval 0/ClientAliveInterval 1000/g' /etc/ssh/sshd_config
+    sed -i 's/#ClientAliveCountMax 3/ClientAliveCountMax 100/g' /etc/ssh/sshd_config
+    systemctl restart ssh
+    "
+
+    return user_data
+ end
+
+#=
 function ec2_set_up_ssh_connection(cluster_name)  
 
     internal_key_name = cluster_name
@@ -203,8 +251,12 @@ systemctl restart ssh
 "
    [internal_key_name, user_data]
 end
+=#
 
 function ec2_create_params(cluster::ManagerWorkers, user_data_base64)
+
+   user_data_manager_base64, user_data_worker_base64 = user_data_base64
+
    params_manager = Dict(
         "InstanceType" => cluster.instance_type_manager,
         "ImageId" => cluster.image_id_manager,
@@ -214,7 +266,7 @@ function ec2_create_params(cluster::ManagerWorkers, user_data_base64)
                 "Tag" => [Dict("Key" => "cluster", "Value" => cluster.name),
                           Dict("Key" => "Name", "Value" => "manager") ]
             ),
-        "UserData" => user_data_base64,
+        "UserData" => user_data_manager_base64,
     )
 
     params_workers = Dict(
@@ -226,7 +278,7 @@ function ec2_create_params(cluster::ManagerWorkers, user_data_base64)
                 "Tag" => [Dict("Key" => "cluster", "Value" => cluster.name),
                           Dict("Key" => "Name", "Value" => "worker") ]
             ),
-        "UserData" => user_data_base64,
+        "UserData" => user_data_worker_base64,
     )
 
     if !isnothing(cluster.subnet_id)
@@ -283,9 +335,11 @@ function ec2_remove_temp_files(internal_key_name)
     rm(pubpath)
 end
 
-
+function ec2_set_hostfile(cluster_nodes, internal_key_name, user)
+    ec2_set_hostfile(cluster_nodes, internal_key_name, user, user)
+end
  
-function ec2_set_hostfile(cluster_nodes, internal_key_name)
+function ec2_set_hostfile(cluster_nodes, internal_key_name, user_manager, user_worker)
     # Testando se a conexão SSH está ativa.
     for instance in keys(cluster_nodes)
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
@@ -316,16 +370,17 @@ function ec2_set_hostfile(cluster_nodes, internal_key_name)
 
     # Atualiza o hostname e o hostfile.
     for instance in keys(cluster_nodes)
+        user = instance == :manager ? user_manager : user_worker
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
        # private_ip = Ec2.describe_instances(Dict("InstanceId" => cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["privateIpAddress"]
-        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo hostnamectl set-hostname $instance"`)
-        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfilefile_content' > /home/ubuntu/hostfile"`)
-#        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
-        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
-        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown ubuntu:ubuntu /etc/hosts"`)
-        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "cat hosts.tmp > /etc/hosts"`)
-        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "sudo chown root:root /etc/hosts"`)
-        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip "rm hosts.tmp"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no $user@$public_ip "sudo hostnamectl set-hostname $instance"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no $user@$public_ip "echo '$hostfilefile_content' > /home/$user/hostfile"`)
+#        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no $user@$public_ip "awk '{ print \$2 \" \" \$1 }' hostfile >> hosts.tmp"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no $user@$public_ip "echo '$hostfile_content' >> hosts.tmp"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no $user@$public_ip "sudo chown $user:$user /etc/hosts"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no $user@$public_ip "cat hosts.tmp > /etc/hosts"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no $user@$public_ip "sudo chown root:root /etc/hosts"`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no $user@$public_ip "rm hosts.tmp"`)
     end
 
     #wait(h)
@@ -342,22 +397,37 @@ function ec2_create_instances(cluster::ManagerWorkers)
     cluster_nodes = Dict()
 
     # Configurando a conexão SSH.
-    internal_key_name, user_data = ec2_set_up_ssh_connection(cluster.name)
+
+    private_key, public_key = ec2_set_up_ssh_connection(cluster.name, cluster.user_manager)
+
+    user_data_manager = ec2_get_user_data(cluster.name, cluster.user_manager, private_key, public_key)
+    user_data_worker = ec2_get_user_data(cluster.name, cluster.user_worker, private_key, public_key)
+
+    internal_key_name = cluster.name
 
     # Configuração do NFS
     if cluster.shared_fs
         file_system_ip = cluster.environment.file_system_ip
-        nfs_user_data = "apt-get -y install nfs-common
-mkdir /home/ubuntu/shared/
-mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $file_system_ip:/ /home/ubuntu/shared/
-chown -R ubuntu:ubuntu /home/ubuntu/shared
+        nfs_user_data_manager = "apt-get -y install nfs-common
+mkdir /home/$user_manager/shared/
+mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $file_system_ip:/ /home/$user_manager/shared/
+chown -R $user_manager:$user_manager /home/$user_manager/shared
 "    
-        user_data *= nfs_user_data
+        nfs_user_data_worker = "apt-get -y install nfs-common
+mkdir /home/$user_worker/shared/
+mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $file_system_ip:/ /home/$user_worker/shared/
+chown -R $user_worker:$user_worker /home/$user_worker/shared
+"    
+        user_data_manager *= nfs_user_data_manager
+        user_data_worker *= nfs_user_data_worker
     end
-    user_data_base64 = base64encode(user_data)
+
+    user_data_manager_base64 = base64encode(user_data_manager)
+    user_data_worker_base64 = base64encode(user_data_worker)
 
     # Criando as instâncias
-    params_manager, params_workers = ec2_create_params(cluster, user_data_base64)
+    params_manager, params_workers = ec2_create_params(cluster, (user_data_manager_base64, user_data_worker_base64))
+
     # Criar o headnode
     instance_headnode = run_instances(1, 1, params_manager)
     cluster_nodes[:manager] = instance_headnode["instancesSet"]["item"]["instanceId"]
@@ -382,7 +452,7 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
     ec2_await_status(cluster_nodes, "running")
     ec2_await_check(cluster_nodes, "ok")
 
-    ec2_set_hostfile(cluster_nodes, internal_key_name)
+    ec2_set_hostfile(cluster_nodes, internal_key_name, cluster.user_manager, cluster.user_worker)
 
     #ec2_remove_temp_files(internal_key_name)
 
@@ -393,15 +463,18 @@ function ec2_create_instances(cluster::PeerWorkers)
     cluster_nodes = Dict()
 
     # Configurando a conexão SSH.
-    internal_key_name, user_data = ec2_set_up_ssh_connection(cluster.name)
+    private_key, public_key = ec2_set_up_ssh_connection(cluster.name, cluster.user)
+    user_data = ec2_get_user_data(cluster.name, cluster.user, private_key, public_key)
+
+    internal_key_name = cluster.name
 
     # Configuração do NFS
     if cluster.shared_fs
         file_system_ip = cluster.environment.file_system_ip
         nfs_user_data = "apt-get -y install nfs-common
-mkdir /home/ubuntu/shared/
-mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $file_system_ip:/ /home/ubuntu/shared/
-chown -R ubuntu:ubuntu /home/ubuntu/shared
+mkdir /home/$user/shared/
+mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $file_system_ip:/ /home/$user/shared/
+chown -R $user:$user /home/$user/shared
 "    
         user_data *= nfs_user_data
     end
@@ -427,7 +500,7 @@ chown -R ubuntu:ubuntu /home/ubuntu/shared
     ec2_await_status(cluster_nodes, "running")
     ec2_await_check(cluster_nodes, "ok")
 
-    ec2_set_hostfile(cluster_nodes, internal_key_name)
+    ec2_set_hostfile(cluster_nodes, internal_key_name, cluster.user)
 
    # ec2_remove_temp_files(internal_key_name)
 
@@ -581,7 +654,17 @@ ec2_can_resume(cluster::Cluster) = ec2_cluster_status(cluster, ["stopped"])
 # All instances must be in "interrupted" or "running" state.
 # If some instance is not in "interrupted" or "running" state, raise an exception.
 # PUBLIC
-function ec2_resume_cluster(cluster::Cluster)
+
+function ec2_resume_cluster(cluster::PeerWorkers)
+    ec2_resume_cluster(cluster, cluster.user, cluster.user)
+end
+
+function ec2_resume_cluster(cluster::ManagerWorkers)
+    ec2_resume_cluster(cluster, cluster.user_manager, cluster.user_worker)
+end
+
+function ec2_resume_cluster(cluster::Cluster, user_manager, user_worker)
+    home = ENV["HOME"]
     ssh_path = joinpath(homedir(), ".ssh")
     keypath = joinpath(ssh_path, "$(cluster.name).key")
 
@@ -589,8 +672,10 @@ function ec2_resume_cluster(cluster::Cluster)
     ec2_await_status(cluster.cluster_nodes, "running")
     ec2_await_check(cluster.cluster_nodes, "ok")
     for instance in keys(cluster.cluster_nodes)
+        user = instance == :manager ? user_manager : user_worker
         public_ip = Ec2.describe_instances(Dict("InstanceId" => cluster.cluster_nodes[instance]))["reservationSet"]["item"]["instancesSet"]["item"]["ipAddress"]
-        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no ubuntu@$public_ip uptime`)
+        run(`ssh-keygen -f $home/.ssh/known_hosts -R $public_ip`)
+        try_run(`ssh -i $keypath -o StrictHostKeyChecking=no $user@$public_ip uptime`)
     end
 end
 

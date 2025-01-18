@@ -113,9 +113,10 @@ end
 
 function launch_processes_ssh(cluster_features, _::Type{<:ManagerWorkers}, ips)
 
-    user = get_user(cluster_features)
     cluster_provider = cluster_features[:node_provider]
+    user = get_user(cluster_features)
 
+    @info ips
     ip_manager = ips[:manager]
 
     manager_features = Dict(get(cluster_features, :manager_features, cluster_features))
@@ -498,7 +499,7 @@ function check_cluster_handle(cluster_handle; reconnecting = false)
     !reconnecting && !haskey(cluster_deploy_info, cluster_handle) && error("cluster $cluster_handle not found")
 end
 
-get_user(cluster_features) =  get(cluster_features, :user, defaults_dict[Provider][:user])
+get_user(cluster_features) =  get(cluster_features, :user, defaults_dict[cluster_features[:node_provider]][:user])
 
 function cluster_reconnect(cluster_handle::Symbol)
 

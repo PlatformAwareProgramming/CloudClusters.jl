@@ -79,7 +79,7 @@ function resume_cluster(type::Type{Localhost}, cluster_handle)
 end
 
 function can_resume(_::Type{Localhost}, cluster_handle) 
-    @assert !haskey(ec2_cluster_info, cluster_handle)
+    @assert !haskey(local_cluster_info, cluster_handle)
     @warn "local clusters cannot be interrupted/resumed"
     false
 end

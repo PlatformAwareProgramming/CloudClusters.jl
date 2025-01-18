@@ -17,6 +17,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     count = get(cluster_features, :node_count, 1)
 
     imageid_manager, imageid_worker = extract_mwfeature(cluster_features, AmazonEC2, :imageid)
+    user_manager, user_worker = extract_mwfeature(cluster_features, AmazonEC2, :user)
 
     subnet_id = get(cluster_features, :subnet_id, get(defaults_dict[AmazonEC2], :subnet_id, nothing))
     placement_group = get(cluster_features, :placement_group, get(defaults_dict[AmazonEC2], :placement_group, nothing))  
@@ -26,7 +27,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     auto_sg, security_group_id = security_group_id == "automatic" ? (true, ec2_create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
 
     cluster = EC2ManagerWorkers(string(cluster_handle), instance_type_manager, instance_type_worker, count, 
-                                    imageid_manager, imageid_worker, 
+                                    imageid_manager, imageid_worker, user_manager, user_worker,
                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                     nothing, nothing, false, cluster_features)
     
@@ -53,6 +54,8 @@ function deploy_cluster(_::Type{AmazonEC2},
 
     count = get(cluster_features, :node_count, 1)
     imageid = get(cluster_features, :imageid, defaults_dict[AmazonEC2][:imageid]) 
+    user = get(cluster_features, :user, defaults_dict[GoogleCloud][:user]) 
+    
     subnet_id = get(cluster_features, :subnet_id, get(defaults_dict[AmazonEC2], :subnet_id, nothing))
     placement_group = get(cluster_features, :placement_group, get(defaults_dict[AmazonEC2], :placement_group, nothing))  
     security_group_id = get(cluster_features, :security_group_id, get(defaults_dict[AmazonEC2], :security_group_id, nothing)) 
@@ -60,7 +63,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     auto_pg, placement_group = placement_group == "automatic" ? (true, ec2_create_placement_group(string("pgroup_", cluster_handle))) : (false, placement_group)
     auto_sg, security_group_id = security_group_id == "automatic" ? (true, ec2_create_security_group(string("sgroup_", cluster_handle), "")) : (false, security_group_id)
 
-    cluster = ec2_build_clusterobj(cluster_type, string(cluster_handle), instance_type, count, imageid,
+    cluster = ec2_build_clusterobj(cluster_type, string(cluster_handle), instance_type, count, imageid, user,
                                    subnet_id, placement_group, auto_pg, security_group_id, auto_sg, cluster_features)
 
     ec2_create_cluster(cluster)
@@ -72,15 +75,15 @@ function deploy_cluster(_::Type{AmazonEC2},
     return cluster
 end
 
-ec2_build_clusterobj(_::Type{<:PeerWorkers}, cluster_handle, instance_type, count, imageid, subnet_id, 
+ec2_build_clusterobj(_::Type{<:PeerWorkers}, cluster_handle, instance_type, count, imageid, subnet_id, user,
                                              placement_group, auto_pg, security_group_id, auto_sg, cluster_features) =  
-                                                 EC2PeerWorkers(cluster_handle, instance_type, count, imageid,
+                                                 EC2PeerWorkers(cluster_handle, instance_type, count, imageid, user,
                                                                 subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                                                 nothing, nothing, false, cluster_features)
 
-ec2_build_clusterobj(_::Type{<:PeerWorkersMPI}, cluster_handle, instance_type, count, imageid, subnet_id, 
+ec2_build_clusterobj(_::Type{<:PeerWorkersMPI}, cluster_handle, instance_type, count, imageid, user, subnet_id, 
                                                 placement_group, auto_pg, security_group_id, auto_sg, cluster_features) =  
-                                                  EC2PeerWorkersMPI(cluster_handle, instance_type, count, imageid,
+                                                  EC2PeerWorkersMPI(cluster_handle, instance_type, count, imageid, user,
                                                                     subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
                                                                     nothing, nothing, false, cluster_features)
 
@@ -123,7 +126,7 @@ function terminate_cluster(_::Type{AmazonEC2}, cluster_handle)
   ec2_terminate_cluster(cluster) 
   ec2_delete_cluster(cluster_handle)  
   delete!(ec2_cluster_info, cluster_handle)
-  nothing
+  return
 end
 
 #==== RESTART CLUSTER ====#

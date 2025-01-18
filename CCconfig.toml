@@ -18,10 +18,18 @@ mpiflags = ""
 
 [ec2]
 
-imageid = "ami-09121cfdb459a0804"  # found at us-east-1 (North Virginia). To use in other regions, copy it.
+imageid = "ami-0b869698add04fbdc"  # found at us-east-1 (North Virginia). To use in other regions, copy it.
 
 # placement_group = "pg-XXXXXXXXXXXX" or "automatic"
 # security_group_id = "sg-XXXXXXXXXXXX" or "automatic"
 # subnet_id = "subnet-XXXXXXXXXXXX"
 
 [gcp]
+
+imageid = "hpc-shelf-311900/global/images/cloudclusters-basic-v3"
+zone = "us-central1-a"
+project = "hpc-shelf-311900"
+user = "heron"
+exename = "/home/heron/.juliaup/bin/julia"
+directory = "/home/heron"
+mpiflags = "--map-by node --hostfile /home/heron/hostfile"

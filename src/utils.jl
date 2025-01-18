@@ -20,7 +20,7 @@ function try_run(command)
             successfull = true
         catch
             @error "failed: $command - trying again"
-            sleep(0.5)
+            sleep(2)
         end        
     end
 
