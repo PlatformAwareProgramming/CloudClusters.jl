@@ -66,7 +66,7 @@ end
 # 1. run the script to clusterize the nodes
 # 2. call deploy_cluster to link ...
 function deploy_cluster(gcptype::Type{GoogleCloud}, 
-                    _::Type{<:PeerWorkers},
+                    cluster_type::Type{<:PeerWorkers},
                     _::Type{<:CreateMode},
                     cluster_handle,
                     cluster_features,
@@ -78,15 +78,16 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
     zone = get(cluster_features, :zone, defaults_dict[GoogleCloud][:zone]) 
     project = defaults_dict[GoogleCloud][:project]
 
-    cluster = GCPPeerWorkers(string(cluster_handle), 
-                            imageid, 
-                            node_count, 
-                            instance_type, 
-                            user,
-                            zone, 
-                            project, 
-                            nothing,
-                            cluster_features)
+    cluster = gcp_build_clusterobj(cluster_type, 
+                                   string(cluster_handle), 
+                                   imageid, 
+                                   node_count, 
+                                   instance_type, 
+                                   user,
+                                   zone, 
+                                   project, 
+                                   nothing,
+                                   cluster_features)
     
     gcp_create_cluster(cluster)
 
@@ -97,11 +98,20 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
     return cluster
 end
 
+gcp_build_clusterobj(_::Type{<:PeerWorkers}, name, image_id, count, instance_type, user, zone, project, cluster_nodes, features) =  
+                                             GCPPeerWorkers(name, image_id, count, instance_type, user, zone, project, cluster_nodes, features)
 
-function launch_processes(_::Type{GoogleCloud}, cluster_type, cluster_handle, ips)
+gcp_build_clusterobj(_::Type{<:PeerWorkersMPI}, name, image_id, count, instance_type, user, zone, project, cluster_nodes, features) =  
+                                                GCPPeerWorkersMPI(name, image_id, count, instance_type, user, zone, project, cluster_nodes, features)
+
+function launch_processes(_::Type{GoogleCloud}, cluster_type::Type{<:Cluster}, cluster_handle, ips)
     cluster = gcp_cluster_info[cluster_handle]
+    launch_processes_ssh(cluster.features, cluster_type, ips)
+end
 
-    return launch_processes_ssh(cluster.features, cluster_type, ips)
+function launch_processes(_::Type{GoogleCloud}, cluster_type::Type{<:PeerWorkersMPI}, cluster_handle, ips)
+    cluster = gcp_cluster_info[cluster_handle]
+    launch_processes_mpi(cluster.features, cluster_type, ips)
 end
 
 #==== INTERRUPT CLUSTER ====#

@@ -25,3 +25,23 @@ function try_run(command)
     end
 
 end
+
+last_exceptions = Ref{Vector{Any}}(Vector{Any}())
+
+function save_exception_details()
+
+    empty!(last_exceptions[])
+    for (exc, bt) in current_exceptions()
+        push!(last_exceptions[],(exc, bt))
+    end
+
+end
+
+function show_exceptions()
+
+    for (exc, bt) in last_exceptions[]
+        showerror(stdout, exc, bt)
+        println(stdout)
+    end
+
+end

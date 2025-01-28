@@ -56,7 +56,9 @@ mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
     image_id::String
     count::Int
     instance_type::String
+    user::String
     zone::String
+    project::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
     features::Dict{Symbol, Any}
 end

@@ -22,12 +22,12 @@ default_sshflags(provider_type) = defaults_dict[provider_type][:sshflags]
 
 function extract_mwfeature(cluster_features, provider_type, featureid)
     if haskey(cluster_features, :manager_features) &&
-      haskey(cluster_features, :worker_features) &&
-      haskey(cluster_features[:manager_features], featureid) &&
-      haskey(cluster_features[:worker_features], featureid) &&
-     !haskey(cluster_features, featureid) 
-      feature_manager = cluster_features[:manager_features][featureid]     
-      feature_worker = cluster_features[:worker_features][featureid]     
+       haskey(cluster_features, :worker_features) &&
+       haskey(cluster_features[:manager_features], featureid) &&
+       haskey(cluster_features[:worker_features], featureid) &&
+      !haskey(cluster_features, featureid) 
+       feature_manager = cluster_features[:manager_features][featureid]     
+       feature_worker = cluster_features[:worker_features][featureid]     
     elseif haskey(cluster_features, featureid) 
       feature_manager = feature_worker = cluster_features[featureid]     
     else
@@ -65,6 +65,7 @@ function cluster_deploy(contract_handle, config_args...)
             cluster_terminate(cluster_handle)
             return :unsupported_mwcluster
         else
+            save_exception_details()
             @error "Some error deploying cluster $cluster_handle ($e)"
             @warn "the cluster will be terminated"
             cluster_terminate(cluster_handle)
@@ -385,12 +386,16 @@ function cluster_interrupt(cluster_handle)
         try
             kill_processes(cluster_handle, cluster_type, cluster_features)
             sleep(1)
+        catch e
+            save_exception_details()
+            @warn "error killing processes of cluster $cluster_handle ($e)"
         finally
             interrupt_cluster(node_provider, cluster_handle)
         end
         #@info "the cluster $cluster_handle has been interrupted"
     catch e
-        println(e)
+        save_exception_details()
+        @error "error interrupting cluster $cluster_handle ($e)"
         return :fail
     end
     return :success
@@ -409,20 +414,21 @@ function cluster_resume(cluster_handle)
         try
             pids = launch_processes(node_provider, cluster_type, cluster_handle, ips)
         catch e 
+            save_exception_details()
             @warn "some error creating processes for cluster $cluster_handle ($e)"
+            @warn "use '@restart $cluster_handle' to launch processes of cluster $cluster_handle."
         end
 
         if !isnothing(pids)
             cluster_deploy_info[cluster_handle][:pids] = pids
-        else
-            @error "resume partially failed due to an unrecoverable error in launching processes"
         end
 
-        #@info "the cluster $cluster_handle has been resumed"
     catch e
-        println(e)
+        save_exception_details()
+        @error "error resuming cluster $cluster_handle ($e)"
         return :fail
     end
+
     return :success
 end
 
@@ -436,14 +442,17 @@ function cluster_terminate(cluster_handle)
         try
             cluster_isrunning(node_provider, cluster_handle) && kill_processes(cluster_handle, cluster_features[:cluster_type], cluster_features)
             sleep(1)
+        catch e
+            save_exception_details()
+            @warn "error killing processes of cluster $cluster_handle ($e)"
         finally
             terminate_cluster(node_provider, cluster_handle)
             terminated_cluster[cluster_handle] = cluster_deploy_info[cluster_handle]
             delete!(cluster_deploy_info, cluster_handle)
         end
-        #@info "the cluster $cluster_handle has been terminated"
     catch e
-        println(e)
+        save_exception_details()
+        @error "error terminating cluster $cluster_handle ($e)"
         return :fail
     end
     return :success
@@ -480,13 +489,16 @@ function cluster_restart(cluster_handle::Symbol)
         cluster_type = cluster_features[:cluster_type]
         try
            kill_processes(cluster_handle, cluster_type, cluster_features)
-        finally        
-            ips = get_ips(cluster_provider, cluster_handle) 
-            pids = launch_processes(cluster_provider, cluster_type, cluster_handle, ips)
-            cluster_deploy_info[cluster_handle][:pids] = pids
-        end
+        catch e
+           error("error killing processes of cluster $cluster_handle ($e)")
+           throw(e)
+        end   
+        ips = get_ips(cluster_provider, cluster_handle) 
+        pids = launch_processes(cluster_provider, cluster_type, cluster_handle, ips)
+        cluster_deploy_info[cluster_handle][:pids] = pids
     catch e
-        println(e)
+        save_exception_details()
+        @error "error restarting processes of cluster $cluster_handle ($e)"
         return :fail
     end
 
@@ -519,8 +531,8 @@ function cluster_reconnect(cluster_handle::Symbol)
                 try
                     pids = launch_processes(cluster_provider, cluster_type, cluster_handle, ips)  
                 catch e
+                    save_exception_details()
                     @warn "exception caught when launching processes ($e) - fix the problem and try '@restart :$cluster_handle'"
-                    @error "error launching processes"
                 end   
             
                 if !isnothing(pids) 
@@ -533,6 +545,7 @@ function cluster_reconnect(cluster_handle::Symbol)
             @error "The cluster $cluster_handle is not active"
         end
     catch e
+        save_exception_details()
         println(e)
         return :fail
     end
@@ -544,6 +557,7 @@ function cluster_reconnect(cluster_handle::Symbol)
 
 
 function report_exception(e)
+    save_exception_details()
     if e isa CompositeException
         @info "reporting composite exception:"
         for ee in e.exceptions
@@ -590,12 +604,12 @@ function load_cluster(cluster_handle::String; from = DateTime(0), cluster_type =
                 result[:timestamp] = timestamp
                 result[:features] = cluster_features
             else
-                @warn "$this_cluster_type cluster $cluster_handle is not active"
+                @warn "$this_cluster_type cluster $cluster_handle is not accessible"
             end
         end
     catch e
-        @error e
-        @error "cluster $cluster_handle not found"
+        save_exception_details()
+        @warn "cluster $cluster_handle not found"
     end
     return result
 end

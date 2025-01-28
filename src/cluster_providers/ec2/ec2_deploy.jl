@@ -54,7 +54,7 @@ function deploy_cluster(_::Type{AmazonEC2},
 
     count = get(cluster_features, :node_count, 1)
     imageid = get(cluster_features, :imageid, defaults_dict[AmazonEC2][:imageid]) 
-    user = get(cluster_features, :user, defaults_dict[GoogleCloud][:user]) 
+    user = get(cluster_features, :user, defaults_dict[AmazonEC2][:user]) 
     
     subnet_id = get(cluster_features, :subnet_id, get(defaults_dict[AmazonEC2], :subnet_id, nothing))
     placement_group = get(cluster_features, :placement_group, get(defaults_dict[AmazonEC2], :placement_group, nothing))  
@@ -75,7 +75,7 @@ function deploy_cluster(_::Type{AmazonEC2},
     return cluster
 end
 
-ec2_build_clusterobj(_::Type{<:PeerWorkers}, cluster_handle, instance_type, count, imageid, subnet_id, user,
+ec2_build_clusterobj(_::Type{<:PeerWorkers}, cluster_handle, instance_type, count, imageid, user, subnet_id,
                                              placement_group, auto_pg, security_group_id, auto_sg, cluster_features) =  
                                                  EC2PeerWorkers(cluster_handle, instance_type, count, imageid, user,
                                                                 subnet_id, placement_group, auto_pg, security_group_id, auto_sg,
