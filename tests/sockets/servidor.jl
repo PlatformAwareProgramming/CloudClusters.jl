@@ -1,7 +1,8 @@
 using Sockets
 
 function servidor_tcp(porta)
-  server = listen(porta)
+  ip_servidor = getipaddr()
+  server = listen(ip_servidor, porta)
 
   println("Servidor TCP rodando na porta $porta")
 
