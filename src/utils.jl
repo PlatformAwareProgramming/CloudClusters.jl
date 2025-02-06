@@ -45,3 +45,5 @@ function show_exceptions()
     end
 
 end
+
+file_extension(file::String) = file[findlast(==('.'), file)+1:end]

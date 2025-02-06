@@ -151,4 +151,16 @@ macro nodes(cluster_handle)
 end
 
 macro status(cluster_handle)
+    call = Expr(:call, cluster_status, cluster_handle)
+    esc(call)
+end
+
+macro config(provider_type)
+    call = Expr(:call, cluster_config, provider_type)
+    esc(call)
+end
+
+macro providers()
+    call = Expr(:call, cluster_providers)
+    esc(call)
 end

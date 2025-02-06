@@ -46,10 +46,10 @@ export cluster_create, @cluster,
        cluster_restart, @restart,
        cluster_features, @features,
        cluster_nodes, @nodes,
-       cluster_defaultconfig,
-       cluster_providers,
-       cluster_features
-
+       cluster_status, @status,
+       cluster_config, @config,
+       cluster_providers, @providers
+       
 # Cluster types
 export ManagerWorkers, PeerWorkers, PeerWorkersMPI, Localhost
 

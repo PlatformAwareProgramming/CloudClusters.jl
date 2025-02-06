@@ -135,3 +135,24 @@ cluster_isrunning(_::Type{AmazonEC2}, cluster_handle) = ec2_cluster_info[cluster
 cluster_isstopped(_::Type{AmazonEC2}, cluster_handle) = ec2_cluster_info[cluster_handle] |> ec2_cluster_isstopped
 
 
+function cluster_status(_::Type{AmazonEC2}, cluster_handle)
+  cluster = ec2_cluster_info[cluster_handle] 
+  cluster_nodes = cluster.cluster_nodes
+  error = false
+  cluster_status = nothing
+  for (nodeid,instanceid) in cluster_nodes
+      node_status = ec2_get_instance_status(instanceid)
+      @info "$nodeid ($instanceid) is $node_status"
+      error = !isnothing(cluster_status) && cluster_status != node_status 
+      cluster_status = node_status
+  end
+  if error
+      @error "The EC2 cluster is in a inconsistent status (all nodes must be in the same status)"
+  else
+      @info "The cluster $cluster_handle at EC2 is in $cluster_status status"
+  end
+end
+
+function cluster_delete(_::Type{AmazonEC2}, cluster_handle)
+  ec2_delete_cluster(cluster_handle)
+end

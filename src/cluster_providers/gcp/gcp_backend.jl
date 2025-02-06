@@ -34,6 +34,7 @@ mutable struct GCPManagerWorkers <: ManagerWorkers #Cluster
     user_worker::String
     zone::String
     project::String
+    network_interface::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
     features::Dict{Symbol, Any}
 end
@@ -47,6 +48,7 @@ mutable struct GCPPeerWorkers <: PeerWorkers # Cluster
     user::String
     zone::String
     project::String
+    network_interface::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
     features::Dict{Symbol, Any}
 end
@@ -59,6 +61,7 @@ mutable struct GCPPeerWorkersMPI <: PeerWorkersMPI # Cluster
     user::String
     zone::String
     project::String
+    network_interface::String
     cluster_nodes::Union{Dict{Symbol, String}, Nothing}
     features::Dict{Symbol, Any}
 end
@@ -189,7 +192,7 @@ function gcp_create_params(cluster::ManagerWorkers, cluster_nodes, internal_key_
             "name" => "external-nat",
             "type" => "ONE_TO_ONE_NAT"
         )],
-        "network" => "https://www.googleapis.com/compute/v1/projects/$(cluster.project)/global/networks/default"
+        "network" => "https://www.googleapis.com/compute/v1/projects/$(cluster.project)/global/networks/$(cluster.network_interface)"
     )],
     "metadata" => 
         "items" => [Dict(
@@ -224,7 +227,7 @@ function gcp_create_params(cluster::ManagerWorkers, cluster_nodes, internal_key_
                     "name" => "external-nat",
                     "type" => "ONE_TO_ONE_NAT"
                 )],
-                "network" => "https://www.googleapis.com/compute/v1/projects/$(cluster.project)/global/networks/default"
+                "network" => "https://www.googleapis.com/compute/v1/projects/$(cluster.project)/global/networks/$(cluster.network_interface)"
             )],
             "metadata" => 
                 "items" => [Dict(
@@ -270,7 +273,7 @@ function gcp_create_params(cluster::PeerWorkers, cluster_nodes, internal_key_nam
                     "name" => "external-nat",
                     "type" => "ONE_TO_ONE_NAT"
                 )],
-                "network" => "https://www.googleapis.com/compute/v1/projects/$(cluster.project)/global/networks/default"
+                "network" => "https://www.googleapis.com/compute/v1/projects/$(cluster.project)/global/networks/$(cluster.network_interface)"
             )],
             "metadata" => 
                 "items" => [Dict(
@@ -377,7 +380,7 @@ function gcp_create_instances(cluster::ManagerWorkers)
 
     internal_key_name = cluster.name
 
-    try gcp_allow_ssh(cluster.project) catch end
+    try gcp_allow_ssh(cluster) catch end
 
     # Criando as instâncias
     params_manager, params_workers = gcp_create_params(cluster, cluster_nodes, internal_key_name, (user_data_manager, user_data_worker), private_key, public_key)
@@ -412,7 +415,7 @@ function gcp_create_instances(cluster::PeerWorkers)
 
     internal_key_name = cluster.name
 
-    try gcp_allow_ssh(cluster.project) catch end
+    try gcp_allow_ssh(cluster) catch end
 
     # Criando as instâncias
     params = gcp_create_params(new_cluster, cluster_nodes, internal_key_name, user_data, private_key, public_key)
@@ -568,18 +571,20 @@ function gcp_get_instance_dict(cluster::Cluster, name)
 end
 
 
-function gcp_allow_ssh(project)
+function gcp_allow_ssh(cluster)
     firewall_rule = Dict(
-        "allowed" => [
-            Dict("IPProtocol" => "tcp",
-                "ports" => ["22"])],
-        "direction" => "INGRESS",
+#        "allowed" => [
+#            Dict("IPProtocol" => "tcp",
+#                "ports" => ["22"])],
+#        "direction" => "INGRESS",
         "kind" => "compute#firewall",
-        "name" => "allow-ssh",
-        "network" => "projects/$project/global/networks/default",
-        "priority" => 1000,
-        "selfLink" => "projects/$project/global/firewalls/allow-ssh",
-        "sourceRanges" => ["0.0.0.0/0"]
+#        "name" => "allow-ssh",
+        "name" => "hpcshelf-virtualplatform-network-rules",
+"network" => "projects/$(cluster.project)/global/networks/$(cluster.network_interface)",
+#        "priority" => 1000,
+#        "selfLink" => "projects/$(cluster.project)/global/firewalls/allow-ssh",
+        "selfLink" => "projects/$(cluster.project)/global/firewalls/hpcshelf-virtualplatform-network-rules",
+"sourceRanges" => ["0.0.0.0/0"]
     )
 
     GCPAPI.compute(:Firewall, :insert, project; data=firewall_rule)

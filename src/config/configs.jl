@@ -73,11 +73,11 @@ function load!()
     end
 end
 
-function cluster_defaultconfig(provider_type)
+function cluster_config(provider_type)
     defaults_dict[provider_type]
 end
 
-function cluster_defaultconfig()
+function cluster_config()
     defaults_dict[Provider]
 end
 

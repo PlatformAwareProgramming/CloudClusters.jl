@@ -123,7 +123,10 @@ function launch_processes_ssh(cluster_features, _::Type{<:ManagerWorkers}, ips)
     manager_features = Dict(get(cluster_features, :manager_features, cluster_features))
     worker_features = Dict(get(cluster_features, :worker_features, cluster_features))
 
-    exeflags_manager = get(manager_features, :exeflags, default_exeflags(cluster_provider)) |> x -> Cmd(convert(Vector{String}, split(x)))
+    exeflags_manager_ = get(manager_features, :exeflags, default_exeflags(cluster_provider)) 
+    exeflags_manager_ *= " --bind-to $(ip_manager[:private_ip])"
+    exeflags_manager = exeflags_manager_ |> x -> Cmd(convert(Vector{String}, split(x)))
+
     exeflags_worker = get(worker_features, :exeflags, default_exeflags(cluster_provider)) |> x -> Cmd(convert(Vector{String}, split(x)))
 
     exename_manager = get(manager_features, :exename, default_exename(cluster_provider)) |> x -> Cmd(convert(Vector{String}, split(x)))
@@ -142,15 +145,15 @@ function launch_processes_ssh(cluster_features, _::Type{<:ManagerWorkers}, ips)
     threadlevel = get(cluster_features, :threadlevel, default_threadlevel(cluster_provider)) 
     mpiflags = get(cluster_features, :mpiflags, default_mpiflags(cluster_provider)) |> x -> Cmd(convert(Vector{String}, split(x)))
 
-    #= FOR DEBUGGING
-    @info "user_id=$user_id"
+    #= FOR DEBUGGING 
+    @info "user=$user"
     @info "sshflags=$sshflags"
     @info "exename_manager=$exename_manager"
     @info "exeflags_manager=$exeflags_manager"
     @info "tunnel=$tunnel"
     @info "directory_manager=$directory_manager"
-    @info "===> $user_id@$(ip_manager[:public_ip])" 
-    =#
+    @info "===> $user@$(ip_manager[:public_ip])" 
+     =#
 
     master_id = nothing
     ntries = 1
@@ -583,18 +586,18 @@ load_cluster(cluster_handle::Symbol; from = DateTime(0), cluster_type = :AnyClus
 
 function load_cluster(cluster_handle::String; from = DateTime(0), cluster_type = :AnyCluster)
     result = Dict()
-    try
-        configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
-        cluster_file = occursin(r"\s*.cluster", cluster_handle) ? cluster_handle : cluster_handle * ".cluster"
-        cluster_path = joinpath(configpath, cluster_file)
-        contents = TOML.parsefile(cluster_path)
-        timestamp = DateTime(contents["timestamp"])
-        this_cluster_type = contents["type"]
-        cluster_handle = Symbol(contents["name"])
-        if timestamp > from && (cluster_type == :AnyCluster || cluster_type == Symbol(this_cluster_type))
-            cluster_provider = contents["provider"]
-            cluster_provider_type = fetchtype(cluster_provider)
-            this_cluster_type_type = fetchtype(this_cluster_type)
+    configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
+    cluster_file = occursin(r"\s*.cluster", cluster_handle) ? cluster_handle : cluster_handle * ".cluster"
+    cluster_path = joinpath(configpath, cluster_file)
+    contents = TOML.parsefile(cluster_path)
+    timestamp = DateTime(contents["timestamp"])
+    this_cluster_type = contents["type"]
+    cluster_handle = Symbol(contents["name"])
+    if timestamp > from && (cluster_type == :AnyCluster || cluster_type == Symbol(this_cluster_type))
+        cluster_provider = contents["provider"]
+        cluster_provider_type = fetchtype(cluster_provider)
+        this_cluster_type_type = fetchtype(this_cluster_type)
+        try
             cluster_features = cluster_load(cluster_provider_type, this_cluster_type_type, cluster_handle, contents)
             if !isnothing(cluster_features)
                 @info "$this_cluster_type $cluster_handle, created at $timestamp on $cluster_provider"
@@ -604,12 +607,14 @@ function load_cluster(cluster_handle::String; from = DateTime(0), cluster_type =
                 result[:timestamp] = timestamp
                 result[:features] = cluster_features
             else
+                cluster_delete(cluster_provider_type, cluster_handle)
                 @warn "$this_cluster_type cluster $cluster_handle is not accessible"
             end
+        catch e
+            save_exception_details()
+            cluster_delete(cluster_provider_type, cluster_handle)
+            @warn "cluster $cluster_handle not found"
         end
-    catch e
-        save_exception_details()
-        @warn "cluster $cluster_handle not found"
     end
     return result
 end
@@ -617,3 +622,11 @@ end
 function cluster_features(cluster_handle)
     Dict(cluster_deploy_info[cluster_handle][:features])
 end
+
+function cluster_status(cluster_handle)
+    check_cluster_handle(cluster_handle)
+    cluster_features = cluster_deploy_info[cluster_handle][:features]
+    cluster_provider = cluster_features[:node_provider]
+    cluster_status(cluster_provider, cluster_handle)
+end
+

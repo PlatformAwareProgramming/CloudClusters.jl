@@ -37,7 +37,8 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
     #image_id_workers = get(cluster_features, :image_id, defaults_dict[GoogleCloud][:image_id]) 
     #image_id_manager = get(cluster_features, :image_id_manager, defaults_dict[GoogleCloud][:image_id_manager])
     zone = get(cluster_features, :zone, defaults_dict[GoogleCloud][:zone]) 
-    project = defaults_dict[GoogleCloud][:project]
+    project = get(cluster_features, :project, defaults_dict[GoogleCloud][:project])
+    network_interface = get(cluster_features, :network_interface, get(defaults_dict[GoogleCloud], :network_interface, "default"))
     instance_type_manager = instance_type[1]
     instance_type_worker = instance_type[2]
 
@@ -51,6 +52,7 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
                             user_worker,
                             zone, 
                             project, 
+                            network_interface,
                             nothing,
                             cluster_features)
     
@@ -76,7 +78,11 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
     imageid = get(cluster_features, :imageid, defaults_dict[GoogleCloud][:imageid]) 
     user = get(cluster_features, :user, defaults_dict[GoogleCloud][:user]) 
     zone = get(cluster_features, :zone, defaults_dict[GoogleCloud][:zone]) 
-    project = defaults_dict[GoogleCloud][:project]
+    project = get(cluster_features, :project, defaults_dict[GoogleCloud][:project])
+    network_interface = get(cluster_features, :network_interface, get(defaults_dict[GoogleCloud],:network_interface, "default"))
+
+
+     # get(cluster_features, :placement_group, get(defaults_dict[AmazonEC2], :placement_group, nothing))
 
     cluster = gcp_build_clusterobj(cluster_type, 
                                    string(cluster_handle), 
@@ -86,6 +92,7 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
                                    user,
                                    zone, 
                                    project, 
+                                   network_interface,
                                    nothing,
                                    cluster_features)
     
@@ -98,11 +105,11 @@ function deploy_cluster(gcptype::Type{GoogleCloud},
     return cluster
 end
 
-gcp_build_clusterobj(_::Type{<:PeerWorkers}, name, image_id, count, instance_type, user, zone, project, cluster_nodes, features) =  
-                                             GCPPeerWorkers(name, image_id, count, instance_type, user, zone, project, cluster_nodes, features)
+gcp_build_clusterobj(_::Type{<:PeerWorkers}, name, image_id, count, instance_type, user, zone, project, network_interface, cluster_nodes, features) =  
+                                             GCPPeerWorkers(name, image_id, count, instance_type, user, zone, project, network_interface, cluster_nodes, features)
 
-gcp_build_clusterobj(_::Type{<:PeerWorkersMPI}, name, image_id, count, instance_type, user, zone, project, cluster_nodes, features) =  
-                                                GCPPeerWorkersMPI(name, image_id, count, instance_type, user, zone, project, cluster_nodes, features)
+gcp_build_clusterobj(_::Type{<:PeerWorkersMPI}, name, image_id, count, instance_type, user, zone, project, network_interface, cluster_nodes, features) =  
+                                                GCPPeerWorkersMPI(name, image_id, count, instance_type, user, zone, project, network_interface, cluster_nodes, features)
 
 function launch_processes(_::Type{GoogleCloud}, cluster_type::Type{<:Cluster}, cluster_handle, ips)
     cluster = gcp_cluster_info[cluster_handle]
@@ -151,4 +158,27 @@ function cluster_isrunning(_::Type{GoogleCloud}, cluster_handle)
         @warn "Erro ao verificar o status do cluster: ", e
         return false
     end
+end
+
+
+function cluster_status(_::Type{GoogleCloud}, cluster_handle)
+    cluster = gcp_cluster_info[cluster_handle] 
+    cluster_nodes = cluster.cluster_nodes
+    error = false
+    cluster_status = nothing
+    for (nodeid,instanceid) in cluster_nodes
+        node_status = gcp_get_instance_status(cluster, instanceid)
+        @info "$nodeid ($instanceid) is $node_status"
+        error = !isnothing(cluster_status) && cluster_status != node_status 
+        cluster_status = node_status
+    end
+    if error
+        @error "The GCP cluster is in a inconsistent status (all nodes must be in the same status)"
+    else
+        @info "The cluster $cluster_handle at GCP is in $cluster_status status"
+    end
+end
+
+function cluster_delete(_::Type{GoogleCloud}, cluster_handle)
+    gcp_delete_cluster(cluster_handle)
 end

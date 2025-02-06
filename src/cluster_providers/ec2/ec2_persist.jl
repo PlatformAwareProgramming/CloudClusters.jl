@@ -108,7 +108,6 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:ManagerWorkers}, cluster_han
         ec2_cluster_info[cluster_handle] = cluster
         return cluster.features
     else
-        ec2_delete_cluster(cluster_handle)
         return nothing
     end
 end
@@ -155,7 +154,6 @@ function cluster_load(_::Type{AmazonEC2}, _::Type{<:PeerWorkers}, cluster_handle
         ec2_cluster_info[cluster_handle] = cluster
         return cluster.features
     else
-        ec2_delete_cluster(cluster_handle)
         return nothing
     end
 end

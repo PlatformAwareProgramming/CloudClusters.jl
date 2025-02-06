@@ -20,6 +20,7 @@ function gcp_cluster_save(cluster::ManagerWorkers)
     contents["cluster_features"] = cluster.features
     contents["zone"] = cluster.zone
     contents["project"] = cluster.project
+    contents["network_interface"] = cluster.network_interface
 
     configpath = get(ENV,"CLOUD_CLUSTERS_CONFIG", pwd())
 
@@ -47,6 +48,7 @@ function gcp_cluster_save(cluster::PeerWorkers)
     contents["image_id"] = cluster.image_id
     contents["zone"] = cluster.zone
     contents["project"] = cluster.project
+    contents["network_interface"] = cluster.network_interface
     contents["cluster_nodes"] = cluster.cluster_nodes
     contents["cluster_features"] = cluster.features
 
@@ -73,6 +75,7 @@ function cluster_load(_::Type{GoogleCloud}, _::Type{<:ManagerWorkers}, cluster_h
     user_worker = contents["user_worker"] 
     zone = contents["zone"] 
     project = contents["project"] 
+    network_interface = contents["network_interface"]
 
     _cluster_nodes = contents["cluster_nodes"]
     cluster_nodes = Dict()
@@ -84,13 +87,12 @@ function cluster_load(_::Type{GoogleCloud}, _::Type{<:ManagerWorkers}, cluster_h
 
     cluster = GCPManagerWorkers(string(cluster_handle), image_id_manager, image_id_worker, count, 
                                     instance_type_manager, instance_type_worker, user_manager, user_worker,
-                                    zone, project, cluster_nodes, cluster_features)
+                                    zone, project, network_interface, cluster_nodes, cluster_features)
 
     if gcp_cluster_status(cluster, ["RUNNING", "TERMINATED"])
         gcp_cluster_info[cluster_handle] = cluster
         return cluster.features
     else
-        gcp_delete_cluster(cluster_handle)
         return nothing
     end
 end
@@ -115,6 +117,7 @@ function cluster_load(_::Type{GoogleCloud}, _::Type{<:PeerWorkers}, cluster_hand
     user = contents["user"]
     zone = contents["zone"]
     project = contents["project"]
+    network_interface = contents["network_interface"]
 
     _cluster_nodes = contents["cluster_nodes"]
     cluster_nodes = Dict()
@@ -124,14 +127,12 @@ function cluster_load(_::Type{GoogleCloud}, _::Type{<:PeerWorkers}, cluster_hand
     
     cluster_features = contents["cluster_features"] |> gcp_adjusttypefeatures
 
-    cluster = GCPPeerWorkers(string(cluster_handle), image_id, count, instance_type, user, zone, project,                            
-                                    cluster_nodes, cluster_features)
+    cluster = GCPPeerWorkers(string(cluster_handle), image_id, count, instance_type, user, zone, project, network_interface, cluster_nodes, cluster_features)
 
     if gcp_cluster_status(cluster, ["RUNNING", "TERMINATED"])
         gcp_cluster_info[cluster_handle] = cluster
         return cluster.features
     else
-        gcp_delete_cluster(cluster_handle)
         return nothing
     end
 end
