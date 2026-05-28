@@ -66,6 +66,7 @@ function cluster_list(;from = DateTime(0), cluster_type = :AnyCluster)
     path_contents = readdir(configpath; join = true)
 
     for cluster_file in path_contents
+        @info cluster_file
         if file_extension(cluster_file) == "cluster"
             cluster_data = load_cluster(cluster_file; from=from, cluster_type=cluster_type)
             !isempty(cluster_data) && push!(result, cluster_data)
